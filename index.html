@@ -1,0 +1,2648 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analisador de Extratos — Zip Contabilidade</title>
+
+<!-- PDF.js (requer internet na primeira vez) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- SheetJS para Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Chart.js para gráficos -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #0f1117;
+  --bg2: #181c27;
+  --bg3: #1e2235;
+  --border: #2a2f45;
+  --text: #e8eaf0;
+  --text2: #7c8299;
+  --text3: #4a5070;
+  --green: #2dd4a0;
+  --green-dim: #1a3d32;
+  --red: #f05c5c;
+  --red-dim: #3d1a1a;
+  --blue: #4b7cf3;
+  --blue-dim: #1a2545;
+  --gold: #f5c842;
+  --accent: #4b7cf3;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── HEADER ── */
+.header {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-mark {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--blue), var(--green));
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px; color: #fff;
+}
+.logo-text { font-size: 15px; font-weight: 600; }
+.logo-sub { font-size: 11px; color: var(--text2); margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.btn-novo {
+  padding: 7px 16px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg3);
+  color: var(--text2); cursor: pointer; font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  transition: all .15s;
+}
+.btn-novo:hover { border-color: var(--accent); color: var(--text); }
+
+/* ── MAIN ── */
+.main { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+/* ── UPLOAD ── */
+.upload-wrap { text-align: center; padding: 60px 20px; }
+.upload-title { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+.upload-sub { color: var(--text2); font-size: 13px; margin-bottom: 32px; }
+
+.drop-zone {
+  border: 1.5px dashed var(--border);
+  border-radius: 16px;
+  padding: 48px 32px;
+  max-width: 540px;
+  margin: 0 auto 16px;
+  cursor: pointer;
+  transition: all .2s;
+  background: var(--bg2);
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag {
+  border-color: var(--accent);
+  background: var(--blue-dim);
+}
+.drop-zone input { display: none; }
+.drop-icon { font-size: 40px; margin-bottom: 12px; }
+.drop-title { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+.drop-sub { font-size: 12px; color: var(--text2); }
+.drop-chips { display: flex; gap: 8px; justify-content: center; margin-top: 16px; }
+.chip {
+  padding: 3px 10px; border-radius: 999px; font-size: 11px;
+  font-family: 'DM Mono', monospace; font-weight: 500;
+}
+.chip-ofx { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue); }
+.chip-pdf { background: var(--red-dim); color: var(--red); border: 1px solid var(--red); }
+.chip-multi { background: var(--green-dim); color: var(--green); border: 1px solid var(--green); }
+
+.tip-box {
+  max-width: 540px; margin: 0 auto;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+  font-size: 12px; color: var(--text2); text-align: left;
+}
+.tip-box strong { color: var(--gold); }
+
+/* ── PROCESSING ── */
+.proc-wrap { text-align: center; padding: 80px 20px; }
+.spinner {
+  width: 44px; height: 44px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin .8s linear infinite; margin: 0 auto 20px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.proc-title { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.proc-sub { font-size: 13px; color: var(--text2); }
+.proc-files { margin-top: 20px; display: flex; flex-direction: column; gap: 6px; }
+.proc-file {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: var(--radius-sm);
+  background: var(--bg2); border: 1px solid var(--border);
+  font-size: 12px; max-width: 400px; margin: 0 auto; width: 100%;
+}
+.proc-file .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text3); flex-shrink: 0;
+}
+.proc-file.done .dot { background: var(--green); }
+.proc-file.processing .dot {
+  background: var(--blue);
+  animation: pulse 1s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── RESULTS ── */
+.results-header {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; margin-bottom: 20px; gap: 12px;
+}
+.results-title { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+.file-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.file-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 999px; font-size: 11px;
+  background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+}
+
+/* ── METRICS ── */
+.metrics {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px; margin-bottom: 20px;
+}
+.metric {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px;
+}
+.metric-label {
+  font-size: 10px; font-weight: 500; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text2); margin-bottom: 6px;
+}
+.metric-value { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--red); }
+.metric-value.blue { color: var(--blue); }
+
+/* ── MONTH SELECTOR ── */
+.month-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.month-btn {
+  padding: 5px 14px; border-radius: 999px; font-size: 12px;
+  cursor: pointer; border: 1px solid var(--border);
+  background: var(--bg2); color: var(--text2);
+  font-family: 'DM Sans', sans-serif; transition: all .15s;
+}
+.month-btn:hover { border-color: var(--accent); color: var(--text); }
+.month-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── TABS ── */
+.tab-bar {
+  display: flex; border-bottom: 1px solid var(--border);
+  margin-bottom: 24px; gap: 0; overflow-x: auto;
+}
+.tab {
+  padding: 10px 18px; font-size: 13px; cursor: pointer;
+  border-bottom: 2px solid transparent; color: var(--text2);
+  background: none; border-top: none; border-left: none; border-right: none;
+  white-space: nowrap; font-family: 'DM Sans', sans-serif;
+  transition: all .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 500; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* ── CHART ── */
+.chart-wrap {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 24px; margin-bottom: 16px;
+  box-shadow: 0 14px 38px rgba(0, 43, 87, .08);
+}
+.chart-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; margin-bottom: 18px;
+}
+.chart-title { font-size: 14px; font-weight: 700; margin-bottom: 2px; color: var(--text); }
+.chart-sub { font-size: 11px; color: var(--text2); }
+.chart-legend {
+  display: flex; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text2);
+}
+.legend-dot {
+  width: 8px; height: 8px; border-radius: 999px;
+  display: inline-block; margin-right: 5px;
+}
+.legend-pill {
+  display: inline-flex; align-items: center;
+  padding: 5px 9px; border: 1px solid var(--border);
+  border-radius: 999px; background: rgba(255,255,255,.55);
+}
+
+/* ── CAT GRID ── */
+.cat-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px; margin-bottom: 20px;
+}
+.cat-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 14px;
+  cursor: pointer;
+}
+.cat-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.cat-name { font-size: 11px; color: var(--text2); margin-bottom: 4px; }
+.cat-val { font-size: 16px; font-weight: 600; font-family: 'DM Mono', monospace; margin-bottom: 6px; }
+.cat-bar { height: 3px; border-radius: 2px; margin-bottom: 4px; }
+.cat-pct { font-size: 10px; color: var(--text3); }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th {
+  text-align: left; padding: 8px 12px; font-size: 11px;
+  font-weight: 500; color: var(--text2);
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+  background: var(--bg2);
+}
+td {
+  padding: 9px 12px; border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg2); }
+.tbl-container {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+
+/* ── BADGE ── */
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 10px; font-weight: 500; white-space: nowrap;
+}
+.company-check {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text2);
+}
+.company-check.warn { color: var(--red); font-weight: 700; }
+.company-check.ok { color: var(--green); font-weight: 700; }
+
+/* ── FILTERS ── */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+select {
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--bg2);
+  color: var(--text); font-size: 12px; font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+select:focus { outline: none; border-color: var(--accent); }
+
+/* ── MAIORES ── */
+.top-list { list-style: none; }
+.top-item {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border); gap: 14px;
+}
+.top-item:last-child { border-bottom: none; }
+.top-desc { flex: 1; min-width: 0; }
+.top-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-bar { height: 2px; border-radius: 2px; margin-top: 6px; }
+.top-meta { font-size: 10px; color: var(--text2); margin-top: 3px; }
+.top-val { font-weight: 600; font-family: 'DM Mono', monospace; font-size: 13px; white-space: nowrap; }
+
+/* ── EXPORT ── */
+.export-info {
+  background: var(--blue-dim); border: 1px solid var(--blue);
+  border-radius: var(--radius); padding: 12px 16px;
+  font-size: 12px; color: var(--text2); margin-bottom: 16px;
+}
+.export-info strong { color: var(--blue); }
+.btn-export {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: var(--radius-sm);
+  border: none; cursor: pointer; font-size: 13px; font-weight: 500;
+  font-family: 'DM Sans', sans-serif; transition: all .15s;
+}
+.btn-export-primary { background: var(--green); color: #0a1a14; }
+.btn-export-primary:hover { background: #25c090; }
+.btn-export-secondary {
+  background: var(--bg3); color: var(--text2);
+  border: 1px solid var(--border);
+}
+.btn-export-secondary:hover { border-color: var(--accent); color: var(--text); }
+.export-btns { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.export-status { font-size: 12px; margin-top: 8px; }
+
+/* ── COUNT ── */
+.count-info { font-size: 11px; color: var(--text2); margin-top: 10px; }
+
+/* ── SECTION TITLE ── */
+.section-title { font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 14px; }
+
+/* ── SCREEN ── */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── TEMA ZIP CONTABILIDADE ───────────────────────────────────────────────── */
+:root {
+  --bg: #f3f6fa;
+  --bg2: #ffffff;
+  --bg3: #f6f9fd;
+  --border: #d8e1ec;
+  --text: #0b1830;
+  --text2: #5f6f86;
+  --text3: #93a1b4;
+  --green: #10c98f;
+  --green-dim: #e8fbf5;
+  --red: #ef4d5a;
+  --red-dim: #fff0f2;
+  --blue: #009ff5;
+  --blue-dim: #eaf7ff;
+  --gold: #f0a600;
+  --accent: #009ff5;
+  --radius: 16px;
+  --radius-sm: 12px;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(0,159,245,.10), transparent 34rem),
+    linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+  color: var(--text);
+}
+
+.header {
+  background: rgba(255,255,255,.92);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid #dce5ef;
+  box-shadow: 0 8px 24px rgba(18, 38, 63, .06);
+  padding: 16px 32px;
+}
+.logo { gap: 14px; align-items: center; }
+.brand-logo-img {
+  width: 255px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+.logo-sub {
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 800;
+  margin-left: 2px;
+}
+#hdr-info { color: var(--text2) !important; }
+.btn-novo {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 9px 18px;
+}
+.btn-novo:hover { background: #008fe0; color: #fff; }
+
+.main { max-width: 1180px; padding: 34px 24px 54px; }
+.upload-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: 6px solid var(--blue);
+  border-radius: 20px;
+  box-shadow: 0 18px 42px rgba(19, 40, 72, .10);
+  padding: 54px 28px 34px;
+}
+.upload-title {
+  color: var(--blue);
+  font-size: 30px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.upload-sub { color: var(--text2); font-size: 15px; }
+.drop-zone {
+  background: #f8fbff;
+  border: 1.5px dashed #b9d7ed;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.8);
+}
+.drop-zone:hover, .drop-zone.drag {
+  background: var(--blue-dim);
+  border-color: var(--blue);
+  transform: translateY(-1px);
+}
+.drop-title { font-weight: 700; color: var(--text); }
+.chip {
+  background: #fff;
+  border-color: #cdd9e6;
+  color: var(--text2);
+}
+.chip-ofx, .chip-pdf, .chip-multi {
+  background: #fff;
+  border-color: #b9d7ed;
+  color: var(--blue);
+}
+.tip-box {
+  background: #f8fbff;
+  border-color: var(--border);
+  color: var(--text2);
+}
+.tip-box strong { color: var(--blue); }
+
+.proc-wrap,
+.chart-wrap,
+.cat-card,
+.metric,
+.tbl-container,
+.export-info {
+  background: var(--bg2);
+  border-color: var(--border);
+  box-shadow: 0 12px 28px rgba(19, 40, 72, .07);
+}
+.proc-file {
+  background: #f8fbff;
+  border-color: var(--border);
+}
+.spinner { border-color: #dce8f4; border-top-color: var(--blue); }
+.results-title {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 800;
+}
+.file-chip {
+  background: var(--blue-dim);
+  border-color: #bee2fa;
+  color: #286183;
+}
+.metrics { gap: 14px; }
+.metric {
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.metric-label {
+  color: #6b7d95;
+  font-weight: 800;
+}
+.metric-value {
+  font-size: 24px;
+  color: var(--text);
+}
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--red); }
+.metric-value.blue { color: var(--blue); }
+
+.month-btn {
+  background: #fff;
+  border-color: var(--border);
+  color: var(--text2);
+  padding: 7px 16px;
+  font-weight: 700;
+}
+.month-btn.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(0,159,245,.25);
+}
+.tab-bar {
+  border-bottom-color: #dbe5f0;
+  margin-top: 10px;
+}
+.tab {
+  color: #66809b;
+  font-weight: 700;
+}
+.tab:hover { color: var(--blue); }
+.tab.active {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
+}
+
+th {
+  background: #f4f8fc;
+  color: #65758b;
+  border-bottom-color: var(--border);
+  font-weight: 800;
+}
+td { border-bottom-color: #e7eef6; }
+tr:hover td { background: #f8fbff; }
+select {
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border);
+}
+.badge { font-weight: 800; }
+.export-info {
+  background: #eef8ff;
+  color: #486177;
+  border-color: #b9e3fb;
+}
+.export-info strong { color: var(--blue); }
+.btn-export {
+  border-radius: 10px;
+  font-weight: 800;
+  box-shadow: 0 10px 20px rgba(19, 40, 72, .08);
+}
+.btn-export-primary {
+  background: linear-gradient(135deg, #08b7f6, #0094e8);
+  color: #fff;
+}
+.btn-export-primary:hover { background: linear-gradient(135deg, #00a9e8, #007ed0); }
+.btn-export-secondary {
+  background: #fff;
+  color: var(--text2);
+  border-color: var(--border);
+}
+.export-status { color: var(--green); font-weight: 700; }
+.section-title { color: var(--blue); font-weight: 800; }
+
+.metrics {
+  grid-template-columns: repeat(4, minmax(210px, 1fr));
+  gap: 14px;
+}
+.metric {
+  min-width: 0;
+  overflow: hidden;
+}
+.metric-value {
+  display: block;
+  max-width: 100%;
+  font-size: clamp(18px, 2vw, 24px);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0;
+}
+.metric-value.money {
+  font-size: clamp(17px, 1.72vw, 22px);
+}
+.txn-desc {
+  display: block;
+  max-width: 460px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+.txn-meta {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  max-width: 460px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  color: var(--text2);
+}
+.txn-cat {
+  margin-top: 3px;
+}
+@media (max-width: 980px) {
+  .metrics { grid-template-columns: repeat(2, minmax(180px, 1fr)); }
+}
+@media (max-width: 560px) {
+  .metrics { grid-template-columns: 1fr; }
+}
+
+::-webkit-scrollbar-track { background: #edf3f8; }
+::-webkit-scrollbar-thumb { background: #bfd0df; }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">
+    <div>
+      <img class="brand-logo-img" alt="Zip Contabilidade" src="data:image/webp;base64,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">
+      <div class="logo-sub">Analisador de extratos</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span id="hdr-info" style="font-size:11px;color:var(--text2)"></span>
+    <button class="btn-novo" id="btn-novo" onclick="resetApp()" style="display:none">↑ Novo arquivo</button>
+  </div>
+</header>
+
+<main class="main">
+
+<!-- UPLOAD -->
+<div id="screen-upload" class="screen active">
+  <div class="upload-wrap">
+    <div class="upload-title">Análise de extratos bancários</div>
+    <div class="upload-sub">Leia, categorize e exporte para o Domínio em segundos</div>
+
+    <div class="drop-zone" id="dropzone"
+      onclick="document.getElementById('fi').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <input type="file" id="fi" accept=".ofx,.ofc,.pdf" multiple onchange="handleFiles(this.files)">
+      <div class="drop-icon">📂</div>
+      <div class="drop-title">Solte os extratos aqui ou clique para selecionar</div>
+      <div class="drop-sub">Vários arquivos ao mesmo tempo · Vários bancos</div>
+      <div class="drop-chips">
+        <span class="chip chip-ofx">OFX</span>
+        <span class="chip chip-pdf">PDF Sicoob</span>
+        <span class="chip chip-pdf">PDF Itaú</span>
+        <span class="chip chip-pdf">PDF Banco do Brasil</span>
+        <span class="chip chip-pdf">PDF Unicred</span>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      💡 <strong>Dica:</strong> layouts PDF já mapeados: <strong>Sicoob</strong>,
+      <strong>Banco do Brasil</strong>, <strong>Itaú</strong> e <strong>Unicred</strong>.
+      OFX continua sendo aceito para os demais bancos. PDFs em imagem/OCR devem ser enviados em OFX ou PDF selecionável para evitar leitura incorreta.
+    </div>
+  </div>
+</div>
+
+<!-- PROCESSING -->
+<div id="screen-proc" class="screen">
+  <div class="proc-wrap">
+    <div class="spinner"></div>
+    <div class="proc-title" id="proc-title">Lendo arquivos...</div>
+    <div class="proc-sub" id="proc-sub">Aguarde</div>
+    <div class="proc-files" id="proc-files"></div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div id="screen-results" class="screen">
+  <div class="results-header">
+    <div>
+      <div class="results-title" id="res-title">—</div>
+      <div class="file-chips" id="file-chips"></div>
+      <div class="company-check" id="company-check"></div>
+    </div>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+  <div class="month-row" id="month-row"></div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('resumo',this)">Resumo</button>
+    <button class="tab" onclick="switchTab('categorias',this)">Categorias</button>
+    <button class="tab" onclick="switchTab('transacoes',this)">Transações</button>
+    <button class="tab" onclick="switchTab('transferencias',this)">Transferências</button>
+    <button class="tab" onclick="switchTab('maiores',this)">Maiores</button>
+    <button class="tab" onclick="switchTab('exportar',this)">Exportar Domínio</button>
+  </div>
+
+  <!-- RESUMO -->
+  <div id="tab-resumo" class="tab-content active">
+    <div class="chart-wrap">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">Movimento mensal</div>
+          <div class="chart-sub">Entradas e saídas por competência</div>
+        </div>
+        <div class="chart-legend">
+          <span class="legend-pill"><span class="legend-dot" style="background:#00b894"></span>Entradas</span>
+          <span class="legend-pill"><span class="legend-dot" style="background:#ef476f"></span>Saídas</span>
+        </div>
+      </div>
+      <div style="position:relative;height:300px">
+        <canvas id="chartResumo"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATEGORIAS -->
+  <div id="tab-categorias" class="tab-content">
+    <div class="cat-grid" id="cat-grid"></div>
+    <div class="chart-wrap">
+      <div class="chart-title">Distribuição de saídas por categoria</div>
+      <div style="position:relative;height:280px">
+        <canvas id="chartCat"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSAÇÕES -->
+  <div id="tab-transacoes" class="tab-content">
+    <div class="filters">
+      <select id="f-tipo" onchange="renderTxns()">
+        <option value="">Entrada + Saída</option>
+        <option value="entrada">Entradas</option>
+        <option value="saida">Saídas</option>
+      </select>
+      <select id="f-cat" onchange="renderTxns()"><option value="">Todas as categorias</option></select>
+      <select id="f-banco" onchange="renderTxns()"><option value="">Todos os bancos</option></select>
+    </div>
+    <div class="tbl-container">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Histórico</th>
+              <th>Banco</th>
+              <th>Categoria</th>
+              <th>Tipo</th>
+              <th style="text-align:right">Valor (R$)</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-txns"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="count-info" id="txns-count"></div>
+  </div>
+
+  <!-- TRANSFERÊNCIAS -->
+  <div id="tab-transferencias" class="tab-content">
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">
+      TED, PIX e transferências com histórico completo — nome, CNPJ e chave.
+    </p>
+    <div class="filters">
+      <select id="f-trf-dir" onchange="renderTrf()">
+        <option value="">Recebidas + Enviadas</option>
+        <option value="entrada">Recebidas</option>
+        <option value="saida">Enviadas</option>
+      </select>
+      <select id="f-trf-mes" onchange="renderTrf()"><option value="">Todos os meses</option></select>
+    </div>
+    <div class="tbl-container">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Histórico completo</th>
+              <th>Banco</th>
+              <th>Direção</th>
+              <th style="text-align:right">Valor (R$)</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-trf"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="count-info" id="trf-count"></div>
+  </div>
+
+  <!-- MAIORES -->
+  <div id="tab-maiores" class="tab-content">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div class="section-title">🔴 Top 10 maiores saídas</div>
+        <ul class="top-list" id="top-saidas"></ul>
+      </div>
+      <div>
+        <div class="section-title">🟢 Top 10 maiores entradas</div>
+        <ul class="top-list" id="top-entradas"></ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPORTAR -->
+  <div id="tab-exportar" class="tab-content">
+    <div class="export-info">
+      ℹ️ Débito e crédito já vêm com <strong>categoria + banco</strong> como referência.
+      Cole na <strong>Plan1</strong> da planilha modelo, substitua os códigos do plano de contas
+      e clique em <strong>Gerar Arquivo TXT</strong>.
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <label for="export-bank" style="font-size:12px;color:var(--text2);font-weight:600">Exportar</label>
+      <select id="export-bank" onchange="renderExport()" style="min-width:260px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg2);color:var(--text);font-family:'DM Sans',sans-serif">
+        <option value="">Todos os bancos</option>
+      </select>
+    </div>
+    <div class="export-btns">
+      <button class="btn-export btn-export-primary" onclick="downloadExcel()">
+        ⬇ Baixar Excel — formato Domínio
+      </button>
+      <button class="btn-export btn-export-primary" onclick="copiarDominioExcel()">
+        Copiar para Excel
+      </button>
+      <button class="btn-export btn-export-secondary" onclick="downloadCSV()">
+        ⬇ Baixar CSV
+      </button>
+      <button class="btn-export btn-export-secondary" onclick="downloadOFX()">
+        ⬇ Baixar OFX
+      </button>
+    </div>
+    <div class="export-status" id="export-status"></div>
+    <div class="tbl-container" style="margin-top:16px">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Débito (substituir)</th>
+              <th>Crédito (substituir)</th>
+              <th style="text-align:right">Valor</th>
+              <th>Complemento histórico</th>
+              <th>Lote</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-export"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ── CONFIG PDF.JS ────────────────────────────────────────────────────────────
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+// ── ESTADO ───────────────────────────────────────────────────────────────────
+let allTxns = [], currentMes = '', chartR = null, chartC = null, sourceCompanies = {}, importValidations = {};
+
+// ── ENCODING ─────────────────────────────────────────────────────────────────
+function fixEnc(s) {
+  if (!s) return '';
+  return s
+    .replace(/Ã©/g,'é').replace(/Ã‰/g,'É').replace(/Ã£/g,'ã').replace(/Ã¡/g,'á')
+    .replace(/Ã³/g,'ó').replace(/Ãº/g,'ú').replace(/Ã§/g,'ç').replace(/Ã‡/g,'Ç')
+    .replace(/Ã¢/g,'â').replace(/Ãª/g,'ê').replace(/Ã´/g,'ô').replace(/Ã /g,'à')
+    .replace(/Ã•/g,'Õ').replace(/Ãµ/g,'õ').replace(/Ã‚/g,'Â').replace(/ÃŠ/g,'Ê')
+    .replace(/[\xc0-\xff][\x80-\xbf]+/g, m => {
+      try { return new TextDecoder('utf-8').decode(new Uint8Array([...m].map(c => c.charCodeAt(0)))); }
+      catch(e) { return m; }
+    });
+}
+
+// ── CATEGORIAS ────────────────────────────────────────────────────────────────
+const CATS = [
+  { name: 'Transferência bancária', color: '#42d8d2', test: /\btbi\b/i },
+  { name: 'Tarifa bancária',      color: '#556',    test: /\btar\b|tarifa|pacote.?serv|d[eé]bito.?pacote/i },
+  { name: 'Fornecedor',            color: '#7b5cf0', test: /mobile int|sispag pag tit|cel pag tit|d[eé]b\.?\s*tit\.?\s*compe\.?\s*efeti(?:vado)?\s*d?|d[eé]b\.?\s*tit\.?\s*cobran[çc]a efetivado|d[eé]b\.?\s*t[íi]tulo cobran[çc]a|db\.?\s*tr\.?\s*c\.?\s*dif\.?\s*tit\.?\s*int\.?\s*fav\.?|pagamento de boleto|pagto boleto|pag boleto|boleto/i },
+  { name: 'Tributos',              color: '#d86f45', test: /pagamento de imposto|pagto imposto|secret\.?\s* fazenda|secretaria da fazenda|sefaz|gare|gnre/i },
+  { name: 'Honorários contábeis', color: '#2dd4a0', test: /contabil|contábil|contador|contabilidade|honorar/i },
+  { name: 'Empréstimo / Financiamento', color: '#a36cf0', test: /pronampe|\bgiro\b|parcela giro|emprestimo|empr[eé]stimo|financiamento/i },
+  { name: 'Encargo fundo garantidor', color: '#778', test: /ecg garantia fgi|garantia fgi|\bfgi\b|fundo garantidor/i },
+  { name: 'Investimento Ourocap',  color: '#c4881a', test: /ourocap/i },
+  { name: 'Pedágio',               color: '#8bb4f3', test: /concessionaria nasce|concession[aá]ria nasce|autopista fern[aã]o dia|autopista fernao dias|epr sul de minas|ped[aá]gio|pedagio/i },
+  { name: 'Combustível',           color: '#f5c842', test: /(cart[aã]o|cartao|compra|pagto).*(posto|combust[ií]vel|combustivel|gasolina|etanol|diesel)|posto.*(cart[aã]o|cartao|compra|pagto)/i },
+  { name: 'Refeições',             color: '#e0a030', test: /(cart[aã]o|cartao|compra|pagto).*(alimenta[çc][aã]o|alimentacao|refei[çc][aã]o|refeicao|restaurante|churrascaria|lanchonete|padaria|sorvete|sorveteria|bar|ifood)|(?:alimenta[çc][aã]o|alimentacao|refei[çc][aã]o|refeicao|restaurante|churrascaria|lanchonete|padaria|sorvete|sorveteria|bar|ifood).*(cart[aã]o|cartao|compra|pagto)/i },
+  { name: 'Uso e consumo',         color: '#8bb4f3', test: /cr[.\s]*compras.*rede[_\s.]?cred|(cart[aã]o|cartao|compra|pagto).*(mercado|supermercado|atacad|mercearia)|(?:mercado|supermercado|atacad|mercearia).*(cart[aã]o|cartao|compra|pagto)/i },
+  { name: 'Cartão corporativo',    color: '#e0a030', test: /cart[aã]o de cr[eé]dito|cartao de credito|pagto cart[aã]o cr[eé]dito|pagamento cart[aã]o cr[eé]dito|fatura.*cart[aã]o/i },
+  { name: 'Recebimento de clientes - cartão', color: '#2dd4a0', test: /recebimento rede visa|recebimento rede mast|recebimento rede amex|recebimento rede elo|recebimento rede|recebimento stone|rede_cred|rede_deb|rede.?cred|rede.?deb|stone visa|stone mast|stone elo|wellhub|gympass/i },
+  { name: 'Plano VGBL',            color: '#2f80ed', test: /premio vgbl|premio.*vgbl|\bvgbl\b/i },
+  { name: 'Fornecedor',            color: '#7b5cf0', test: /tit pag tit ulo itau|pag titulo itau|business|pag boleto int|d[eé]b\.?\s*tit\.?\s*compe efetivado|deb\.?\s*tit\.?\s*compe efetivado|debito\.?\s*tit\.?\s*compe efetivado|pix emitido outra if|d[eé]b\.?\s*pagamento de bolet|deb\.?\s*pagamento de bolet|debito\.?\s*pagamento de bolet|d[eé]b\.?\s*conv\.?\s*demais empres|deb\.?\s*conv\.?\s*demais empres|debito\.?\s*conv\.?\s*demais empres|sispag fornecedores|mobile pag tit|cheque|chq |cheque compe/i },
+  { name: 'Tarifa',                color: '#556',    test: /\btar\b|tarifa pagamento salar|teg ex gar/i },
+  { name: 'Aplicação financeira', color: '#42d8d2', test: /bb rende|rende f[aá]cil|resgate.*cdb|cdb\s*di|aplica[çc][aã]o|aplicacao|investimento/i },
+  { name: 'Rendimento de aplicação', color: '#20b8aa', test: /rendimentos?\s+rend pago aplic|rend pago aplic aut mais|rendimento de aplica/i },
+  { name: 'Empréstimo / Financiamento', color: '#a36cf0', test: /parcela giro|emprestimo|empr[eé]stimo|financiamento/i },
+  { name: 'Plano de saúde',        color: '#2f80ed', test: /pleno saude|pleno sa[úu]de|plano de sa[úu]de/i },
+  { name: 'Fornecedor',            color: '#7b5cf0', test: /sispag fornecedores|mobile pag tit|cheque|chq |cheque compe/i },
+  { name: 'Tarifa',                color: '#556',    test: /teg ex gar/i },
+  { name: 'Tributos',              color: '#d86f45', test: /sispag tributos/i },
+  { name: 'Taxas e tributos prefeitura', color: '#d86f45', test: /d[eé]b\.?conv\.?prefeitura|prefeitura|municipio|munic[ií]pio|iptu|alvar[aá]|taxa.*pref|tributo.*pref/i },
+  { name: 'Água e esgoto',        color: '#1ba6a6', test: /d[eé]b\.?conv\.?saneamento|saneamento|saae|sabesp|copasa|cedae|caesb|embasa|[aá]gua|agua|esgoto/i },
+  { name: 'Tributos federais',    color: '#cc2020', test: /d[eé]b\.?conv\.?tributos federais|tributos federais|receita federal|\brfb\b|arrecada[çc][aã]o federal/i },
+  { name: 'INSS / GPS',           color: '#e07040', test: /\binss\b|gps |guia.?prev/i },
+  { name: 'FGTS',                 color: '#c4881a', test: /\bfgts\b/i },
+  { name: 'IRRF',                 color: '#9a6010', test: /\birrf\b/i },
+  { name: 'Simples Nacional',     color: '#b83a2a', test: /simples.?nac|pgdas/i },
+  { name: 'DARF / IRPJ / CSLL',  color: '#cc2020', test: /\bdarf\b|irpj|csll/i },
+  { name: 'ISS',                  color: '#e07040', test: /\biss\b/i },
+  { name: 'ICMS',                 color: '#b83a2a', test: /\bicms\b/i },
+  { name: 'PIS / COFINS',         color: '#c4881a', test: /\bpis\b|\bcofins\b/i },
+  { name: 'Salários',             color: '#4b7cf3', test: /\bfolha\b|salario|salário|pagamento.?salario|debito.?pag.*salario/i },
+  { name: 'Pró-labore',           color: '#6b9cf3', test: /pro.?labore/i },
+  { name: 'Férias / 13º',        color: '#8bb4f3', test: /\bferias\b|férias|13.?sal/i },
+  { name: 'Honorários contábeis', color: '#2dd4a0', test: /honorar/i },
+  { name: 'Aluguel',              color: '#7b5cf0', test: /aluguel|loca[çc][aã]o/i },
+  { name: 'Energia elétrica',     color: '#f5c842', test: /energia|el[eé]trica|cpfl|cemig|enel|coelba|celpe|\bluz\b|conv.*en\.|origo.?energia/i },
+  { name: 'Internet / Telefone',  color: '#e0a030', test: /internet|telefon|vivo|claro|\btim\b|\boi\b|telecom|netspeed/i },
+  { name: 'Seguros',              color: '#888',    test: /seguro/i },
+  { name: 'Tarifa bancária',      color: '#556',    test: /tarifa|pacote.?serv|débito.?pacote/i },
+  { name: 'IOF',                  color: '#445',    test: /\biof\b/i },
+  { name: 'Juros / Encargos',     color: '#778',    test: /juros|encargo|\bmulta\b|\bmora\b/i },
+  { name: 'Recebimento de clientes - cartão', color: '#2dd4a0', test: /rede_cred|rede_deb|rede.?cred|rede.?deb|recebimento (rede|stone)|stone visa|stone mast|stone elo|wellhub|gympass/i },
+];
+
+const TRF_CATS = new Set(['Recebimento de clientes','Recebimento de clientes - cartão','Transferência mesma empresa','Transferência pessoa física','Transferência bancária','TED recebida','PIX enviado','TED enviada',
+  'Transf. recebida','Transf. enviada','Fornecedor','Fornecedores']);
+
+const CAT_COLOR = {};
+CATS.forEach(c => { CAT_COLOR[c.name] = c.color; });
+Object.assign(CAT_COLOR, {
+  'Aplicação financeira': '#42d8d2',
+  'Fornecedor': '#7b5cf0', 'Fornecedores': '#7b5cf0',
+  'Transferência mesma empresa': '#42d8d2',
+  'Transferência pessoa física': '#6b9cf3',
+  'Cartão corporativo': '#e0a030',
+  'Recebimento de clientes': '#2dd4a0', 'Recebimento de clientes - cartão': '#2dd4a0', 'Recebimento cliente': '#2dd4a0',
+  'PIX recebido': '#2dd4a0', 'TED recebida': '#1aa070',
+  'PIX enviado': '#f08080', 'TED enviada': '#f05c5c',
+  'Transferência bancária': '#42d8d2', 'Transf. recebida': '#2dd4a0', 'Transf. enviada': '#f08080',
+  'Combustível': '#f5c842', 'Refeições': '#e0a030', 'Uso e consumo': '#8bb4f3',
+  'Pedágio': '#8bb4f3',
+  'Encargo fundo garantidor': '#778', 'Investimento Ourocap': '#c4881a',
+  'Cheque': '#7b5cf0', 'Outros': '#445566',
+});
+
+function getCatColor(n) { return CAT_COLOR[n] || '#445566'; }
+function isTrf(cat) { return TRF_CATS.has(cat); }
+
+function temEmpresa(d) {
+  return /\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-\/]?\d{4}[\.\-]?\d{2}/.test(d) ||
+    /ltda|s\.?a\.?|eireli|\bme\b|\bepp\b|distribuidora|industria|comércio|comercio|servi[çc]os|farmácia|farmacia/i.test(d);
+}
+
+function categorize(desc, tipo) {
+  const d = desc || '';
+  if (tipo === 'saida' && /cr[.\s]*compras.*rede[_\s.]?cred/i.test(d)) return 'Uso e consumo';
+  for (const c of CATS) {
+    if (tipo === 'saida' && c.name === 'Recebimento de clientes - cartão') continue;
+    if (c.test.test(d)) return c.name;
+  }
+  if (tipo === 'saida' && /(cart[aã]o|cartao|compra no cart|compra cart|pagto cart)/i.test(d)) return 'Uso e consumo';
+  if (/\b(pix|ted|doc)\b|transf/i.test(d)) {
+    if (/pix.?emitido|pagamento.?pix/i.test(d)) return 'PIX enviado';
+    if (/pix.?recebido|recebimento.?pix/i.test(d)) return 'Recebimento de clientes';
+    if (/ted.?cr[eé]dito|ted.?credito|cr[eé]d\.?ted|cred\.?ted|cr[eé]dito em conta|credito em conta/i.test(d)) return 'TED recebida';
+    if (/ted.?d[eé]bito|ted.?debito|d[eé]b\.?ted|deb\.?ted|ted enviada/i.test(d)) return 'TED enviada';
+    if (/ted.?pag.?fornecedores/i.test(d)) return tipo === 'entrada' ? 'Transf. recebida' : 'TED enviada';
+    if (/créd\.ted|cred\.ted|transf.?recebida.*pix.?sicoob/i.test(d)) return 'TED recebida';
+    if (/transf\.realizada|déb\.transf|debito.?emissao.?ted/i.test(d)) return 'Transf. enviada';
+    if (/cred\.transf|créd\.transf|transf\.recebida/i.test(d)) return 'Transf. recebida';
+    if (temEmpresa(d)) return tipo === 'entrada' ? 'Recebimento de clientes' : 'Fornecedor';
+    return tipo === 'entrada' ? 'Recebimento de clientes' : 'Fornecedor';
+  }
+  return tipo === 'entrada' ? 'Recebimento de clientes' : 'Outros';
+}
+
+function normalizeCNPJ(s) {
+  const m = String(s || '').match(/\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-\/]?\d{4}[\.\-]?\d{2}/);
+  return m ? m[0].replace(/\D/g, '') : '';
+}
+
+function normalizeCompanyName(s) {
+  return String(s || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\b(CNPJ|CPF|LTDA|EIRELI|ME|EPP|SA|S A|MATRIZ|FILIAL)\b/gi, ' ')
+    .replace(/[^A-Z0-9 ]/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function isOwnCompanyTransfer(desc, empresa) {
+  const d = String(desc || '');
+  const e = String(empresa || '');
+  if (!e || !/\b(pix|ted|doc|transf|transfer[êe]ncia|transferencia)\b/i.test(d)) return false;
+
+  const docEmpresa = normalizeCNPJ(e);
+  if (docEmpresa && d.replace(/\D/g, '').includes(docEmpresa)) return true;
+
+  const nomeEmpresa = normalizeCompanyName(e);
+  const nomeDesc = normalizeCompanyName(d);
+  if (!nomeEmpresa || nomeEmpresa.length < 8 || !nomeDesc) return false;
+  const tokens = nomeEmpresa.split(' ').filter(x => x.length >= 4);
+  return tokens.length >= 2 && tokens.filter(t => nomeDesc.includes(t)).length >= Math.min(2, tokens.length);
+}
+
+function hasCPF(desc) {
+  return /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(String(desc || ''));
+}
+
+function hasCNPJ(desc) {
+  return /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(String(desc || ''));
+}
+
+function isPessoaFisicaTransfer(desc, tipo) {
+  const d = String(desc || '');
+  if (tipo !== 'saida') return false;
+  if (!hasCPF(d) || hasCNPJ(d)) return false;
+  if (/ltda|eireli|\bme\b|\bepp\b|s\.?a\.?|com[eé]rcio|comercio|servi[çc]os|industria|ind[uú]stria/i.test(d)) return false;
+  if (/\b(pix|ted|doc|tbi|transf|transfer[êe]ncia|transferencia)\b/i.test(d)) return true;
+
+  const withoutCpf = normalizeCompanyName(d.replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, ' '));
+  const tokens = withoutCpf.split(' ').filter(t => t.length >= 3 && !/^\d+$/.test(t));
+  return tokens.length >= 2;
+}
+
+function refreshTxnCategory(txn) {
+  let cat = categorize(txn.descFull || txn.desc || txn.complemento, txn.tipo);
+  const fullDesc = `${txn.descFull || ''} ${txn.desc || ''} ${txn.complemento || ''}`;
+  if (isOwnCompanyTransfer(fullDesc, txn.empresa)) {
+    cat = 'Transferência mesma empresa';
+  } else if (isPessoaFisicaTransfer(fullDesc, txn.tipo)) {
+    cat = 'Transferência pessoa física';
+  }
+  const bL = txn.bancoInfo || txn.banco || (txn.source || '').replace(/\.[^.]+$/, '');
+  txn.cat = cat;
+  txn.codDebito = txn.tipo === 'saida' ? cat : bL;
+  txn.codCredito = txn.tipo === 'saida' ? bL : cat;
+  return txn;
+}
+
+function extractNome(desc) {
+  if (!desc) return { nome: null, cnpj: null };
+  const pr = /Recebimento Pix\s+(.+?)(?:\s+\*\*\*|$)/i.exec(desc);
+  if (pr) return { nome: pr[1].trim(), cnpj: null };
+  const pp = /Pagamento Pix\s+(.+?)(?:\s+\*\*\*|$)/i.exec(desc);
+  if (pp) return { nome: pp[1].trim(), cnpj: null };
+  const cm = desc.match(/(\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-\/]?\d{4}[\.\-]?\d{2})/);
+  const cnpj = cm ? cm[1] : null;
+  let nome = cnpj ? desc.substring(0, desc.indexOf(cm[0])).trim() : desc.trim();
+  if (cnpj) {
+    const before = desc.substring(0, desc.indexOf(cm[0])).trim();
+    const after = desc.substring(desc.indexOf(cm[0]) + cm[0].length).trim();
+    if (/^(?:\d+\s*){1,4}$/.test(before) && after.length >= 3) nome = after;
+  }
+  nome = nome.replace(/\s+/g, ' ').replace(/[\-,]$/, '').trim();
+  return { nome: nome.length >= 3 ? nome : null, cnpj };
+}
+
+function detectMeio(d) {
+  if (/\bpix\b/i.test(d)) return 'PIX';
+  if (/\bted\b/i.test(d)) return 'TED';
+  if (/\bdoc\b/i.test(d)) return 'DOC';
+  if (/transf/i.test(d)) return 'Transf.';
+  return null;
+}
+
+function sanitizeHistoryText(s, limit = 240) {
+  return String(s || '')
+    .replace(/[\r\n\t;|*]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, limit);
+}
+
+function extractStatementCompany(text, fname = '') {
+  const s = fixEnc(String(text || '')).replace(/\s+/g, ' ').trim();
+  const cnpjPat = /\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[\.\-\/]?\d{4}[\.\-]?\d{2}/;
+  const cnpj = s.match(cnpjPat)?.[0] || '';
+  let nome = '';
+  const cnpjLabel = s.match(new RegExp('([A-ZÁÉÍÓÚÃÕÂÊÔÇ0-9 .,&/-]{5,90})\\s+CNPJ\\s*' + cnpjPat.source, 'i'));
+  if (cnpjLabel) nome = cnpjLabel[1];
+  if (!nome && cnpj) {
+    const idx = s.indexOf(cnpj);
+    nome = s.substring(Math.max(0, idx - 90), idx)
+      .replace(/.*(?:cliente|nome|empresa|raz[aã]o social)[: ]/i, '')
+      .trim();
+  }
+  if (!nome) {
+    const m = s.match(/(?:nome|cliente|empresa|raz[aã]o social)[: ]+([A-ZÁÉÍÓÚÃÕÂÊÔÇ0-9 .,&/-]{5,90})(?=\s+(?:ag[eê]ncia|conta|cnpj|cpf|data|extrato)|$)/i);
+    if (m) nome = m[1];
+  }
+  nome = sanitizeHistoryText(nome, 80)
+    .replace(/\b(Ag[eê]ncia|Conta|Extrato|Banco|CNPJ|CPF)\b.*$/i, '')
+    .trim();
+  if (!nome && cnpj) nome = `CNPJ ${cnpj}`;
+  return nome || '';
+}
+
+function fmtBRL(v) { return (+v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+function mkMk(dd, mm, yyyy) {
+  const label = new Date(+yyyy, +mm - 1, 1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' });
+  return { date: `${dd}/${mm}/${yyyy}`, monthKey: `${yyyy}-${mm}`, monthLabel: label, dateSerial: new Date(+yyyy, +mm - 1, +dd) };
+}
+
+function makeTxn(date, monthKey, monthLabel, dateSerial, desc, tipo, value, bancoNome, bancoInfo, fname) {
+  const cat = categorize(desc, tipo);
+  const { nome, cnpj } = extractNome(desc);
+  const catL = cat, bL = bancoInfo || bancoNome || fname.replace(/\.[^.]+$/, '');
+  const cleanDesc = sanitizeHistoryText(desc, 240);
+  return refreshTxnCategory({
+    date, monthKey, monthLabel, dateSerial, desc: cleanDesc, descFull: cleanDesc, nome, cnpj,
+    meio: detectMeio(desc), value: Math.round(value * 100) / 100, tipo, cat,
+    codDebito: tipo === 'saida' ? catL : bL,
+    codCredito: tipo === 'saida' ? bL : catL,
+    complemento: sanitizeHistoryText(desc || nome || '', 120),
+    banco: bancoNome, bancoInfo, source: fname
+  });
+}
+
+function makeTxnWithComplement(date, monthKey, monthLabel, dateSerial, desc, complemento, tipo, value, bancoNome, bancoInfo, fname) {
+  const txn = makeTxn(date, monthKey, monthLabel, dateSerial, desc, tipo, value, bancoNome, bancoInfo, fname);
+  txn.complemento = sanitizeHistoryText(complemento || desc || txn.complemento, 120);
+  txn.descFull = sanitizeHistoryText(complemento || desc || txn.descFull, 240);
+  return txn;
+}
+
+function dedupeTxns(txns) {
+  const seen = new Set();
+  return txns.filter(t => {
+    if (t.banco === 'Banco do Brasil') return true;
+    if (t.banco === 'Itaú') return true;
+    if (t.banco === 'Sicoob') return true;
+    const descKey = String(t.desc || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const key = [t.date, t.tipo, t.value.toFixed(2), t.bancoInfo || t.banco, descKey].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ── PARSER SICOOB PDF (coordenadas X/Y via PDF.js) ────────────────────────────
+// Layout do Sicoob:
+//   x~37  = Data (dd/mm)
+//   x~68  = Documento
+//   x~137-150 = Histórico (linha principal quando tem data)
+//   x~137 = Detalhe (linha de continuação sem data — mesmo X, Y diferente)
+//   x~493-536 = "R$" e valor com D ou C
+// Uma transação ocupa 1 ou 2 linhas de Y:
+//   Linha 1: Data | Documento | Histórico resumido | (valor às vezes aqui)
+//   Linha 2: (sem data) | detalhe do histórico   | (valor pode estar aqui)
+function extractSicoobDateText(items, rowText) {
+  const leftText = items
+    .filter(t => t.x < 50)
+    .sort((a, b) => a.x - b.x)
+    .map(t => t.text)
+    .join('')
+    .replace(/\s+/g, '');
+  const mLeft = leftText.match(/^(\d{2})\/(\d{2})/);
+  if (mLeft) return `${mLeft[1]}/${mLeft[2]}`;
+
+  const compact = String(rowText || '').replace(/\s+/g, '');
+  const mRow = compact.match(/^(\d{2})\/(\d{2})/);
+  return mRow ? `${mRow[1]}/${mRow[2]}` : null;
+}
+
+async function parseSicoobPDFCoords(pdfDoc, fname) {
+  // Coleta metadados do cabeçalho (ano, banco, conta)
+  let ano = (fname.match(/20\d{2}/) || [String(new Date().getFullYear())])[0];
+  let bancoNome = 'Sicoob', bancoInfo = 'Sicoob';
+
+  // Pega o texto da primeira página para extrair cabeçalho
+  const page1 = await pdfDoc.getPage(1);
+  const tc1 = await page1.getTextContent();
+  const fullText1 = tc1.items.map(i => i.str).join(' ');
+  const mAno = fullText1.match(/(?:Periodo|Período):.*?(\d{4})|(\d{2})\/(\d{2})\/(20\d{2})\s*-\s*\d{2}\/\d{2}\/(20\d{2})/i);
+  if (mAno) ano = mAno[1] || mAno[5] || mAno[4] || ano;
+  const mCoop = fullText1.match(/Cooperativa:.*?\/\s*([^C]+?)(?=Conta:|$)/);
+  if (mCoop) bancoInfo = 'Sicoob - ' + mCoop[1].trim().substring(0, 35);
+  const mConta = fullText1.match(/Conta:\s*([\d\.\-]+)/);
+  if (mConta) bancoInfo += ` Cc.${mConta[1]}`;
+
+  const txns = [];
+  const SKIP_TEXT = /^(SALDO DO DIA|Data|Documento|Histórico|Valor|HISTÓRICO|RESUMO|ENCARGOS|OUTRAS|Sicoob|SISTEMA|PLATAFORMA|EXTRATO|Cooperativa|Conta:|Periodo:|Saldo |Cheque especial|Tarifas |SAC:|Taxa |Custo |Vencimento |Previsão |https?:|INFORMAÇ)/i;
+
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const page = await pdfDoc.getPage(p);
+    const tc = await page.getTextContent();
+
+    // Agrupa items por linha Y (tolerância de 3pt)
+    const rows = [];
+    for (const item of tc.items) {
+      if (!item.str.trim()) continue;
+      const x = item.transform[4];
+      const y = item.transform[5]; // Y cresce de baixo pra cima no PDF.js
+      // Encontra linha existente com Y próximo
+      let row = rows.find(r => Math.abs(r.y - y) < 3);
+      if (!row) { row = { y, items: [] }; rows.push(row); }
+      row.items.push({ x, text: item.str.trim() });
+    }
+
+    // Ordena linhas de cima para baixo (Y decrescente no sistema PDF.js)
+    rows.sort((a, b) => b.y - a.y);
+
+    // Processa cada linha
+    // Uma linha de transação Sicoob tem:
+    //   - item com x < 60 e texto dd/mm  → é data
+    //   - items com x > 130 e x < 490   → é histórico
+    //   - item com x > 490 e texto contendo D ou C → é valor
+    // Uma linha de detalhe NÃO tem data (x~37) nem valor (x>490)
+
+    // Primeiro passa: identifica quais linhas são transações e quais são detalhes
+    const structured = rows.map(row => {
+      const texts = row.items.slice().sort((a, b) => a.x - b.x);
+      const rowText = texts.map(t => t.text).join('').replace(/\s+/g, ' ').trim();
+      const dateText = extractSicoobDateText(texts, rowText);
+      const valInfo = extractPDFMoneyText(texts.filter(t => t.x > 430)) ||
+        extractPDFMoneyText([{ x: 0, text: rowText }]);
+      const histItems = texts.filter(t => t.x >= 130 && t.x < 430);
+      let hist = histItems.map(t => t.text).join(' ').trim();
+      if (!hist && rowText) {
+        hist = rowText
+          .replace(/^(\d{2}\/\d{2})/, '')
+          .replace(valInfo?.text || '', '')
+          .replace(/R\$\s*\d{1,3}(?:\.\d{3})*,\d{2}[DC*]?/i, '')
+          .replace(/R\$\s*\d+,\d{2}[DC*]?/i, '')
+          .trim();
+      }
+
+      return { y: row.y, date: dateText, val: valInfo?.text || null, valInfo, hist, isSkip: SKIP_TEXT.test(hist) };
+    });
+
+    // Segunda passa: monta transações
+    // O valor pode estar na linha da data OU na linha anterior (acima) quando o histórico ocupa 2 linhas
+    // Estratégia: percorre linhas; quando acha data, coleta histórico e busca valor
+    for (let i = 0; i < structured.length; i++) {
+      const row = structured[i];
+      if (!row.date || row.isSkip) continue;
+      if (SKIP_TEXT.test(row.hist) && !row.val) continue;
+
+      const [dd, mm] = row.date.split('/');
+      let hist = row.hist;
+      let valStr = row.val;
+
+      // Em alguns PDFs Sicoob, o valor fica poucos pontos acima da linha da data.
+      if (!valStr && i > 0) {
+        const prev = structured[i - 1];
+        if (!prev.date && prev.val && Math.abs(prev.y - row.y) <= 8) {
+          valStr = prev.val;
+        }
+      }
+
+      // Se não tem valor nessa linha, verifica próxima linha (detalhe + valor juntos no Sicoob)
+      // O Sicoob às vezes coloca o valor na mesma Y que o detalhe, não na da data
+      if (!valStr && i + 1 < structured.length) {
+        const next = structured[i + 1];
+        if (!next.date && next.val) {
+          // Linha de detalhe com o valor
+          if (next.hist) hist = (hist + ' ' + next.hist).trim();
+          valStr = next.val;
+          i++; // pula a linha de detalhe
+        }
+      }
+
+      // Pega linha de detalhe adicional (sem valor, sem data)
+      if (i + 1 < structured.length) {
+        const next = structured[i + 1];
+        if (!next.date && !next.val && next.hist && !next.isSkip) {
+          hist = (hist + ' ' + next.hist).trim();
+          i++;
+        }
+      }
+
+      if (!valStr) continue;
+      if (/\*$/.test(String(valStr).trim()) && !/[DC]$/i.test(String(valStr).trim())) continue;
+
+      const defaultTipo = inferSicoobTipo(hist);
+      const parsedVal = extractPDFMoneyText([{ x: 0, text: valStr }], { defaultTipo });
+      if (!parsedVal) continue;
+
+      const val = parsedVal.value;
+      const tipo = parsedVal.tipo || defaultTipo;
+
+      const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, ano);
+      txns.push(makeTxn(date, monthKey, monthLabel, dateSerial, hist, tipo, val, bancoNome, bancoInfo, fname));
+    }
+  }
+
+  return txns;
+}
+
+function inferSicoobTipo(hist) {
+  const h = String(hist || '');
+  if (/PIX\s*REC|REC\.OUTRA|RECEB|CR[ÉE]D|RESGATE|\bDEP\.?|DEPOS|LIQ\.COBRAN[ÇC]A/i.test(h)) return 'entrada';
+  if (/PIX\s*EMIT|EMIT\.OUT|D[ÉE]B|TARIFA|JUROS|IOF|EMPR[ÉE]STIMO|CONV|PAGAMENTO/i.test(h)) return 'saida';
+  return 'saida';
+}
+
+// ── PARSER OFX ────────────────────────────────────────────────────────────────
+function pdfMoneyToNumber(s) {
+  if (!s) return NaN;
+  let raw = String(s).replace(/\s+/g, '').replace(/R\$/gi, '');
+  const neg = raw.includes('-') || /^\(.*\)$/.test(raw);
+  raw = raw.replace(/[()\-]/g, '');
+  if (!raw) return NaN;
+  if (raw.includes(',')) raw = raw.replace(/\./g, '').replace(',', '.');
+  else raw = raw.replace(/,/g, '');
+  const n = parseFloat(raw);
+  return isNaN(n) ? NaN : (neg ? -Math.abs(n) : n);
+}
+
+function extractPDFMoneyText(items, opts = {}) {
+  const text = items
+    .slice()
+    .sort((a, b) => a.x - b.x)
+    .map(i => i.text)
+    .join('')
+    .replace(/\s+/g, '');
+  const m = text.match(/-?(?:R\$)?-?\d{1,3}(?:\.\d{3})*,\d{2}(?:[DC]|\([+-]\)|[+-]|\*)?|-?(?:R\$)?-?\d+,\d{2}(?:[DC]|\([+-]\)|[+-]|\*)?/);
+  if (!m) return null;
+  const valueText = m[0];
+  const signal = /D|\(-\)|^-|-$/.test(valueText) ? 'saida'
+    : /C|\(\+\)|\+$/.test(valueText) ? 'entrada'
+    : opts.defaultTipo || null;
+  return { text: valueText, tipo: signal, value: Math.abs(pdfMoneyToNumber(valueText)) };
+}
+
+async function collectPDFWords(pdfDoc, pageNum) {
+  const page = await pdfDoc.getPage(pageNum);
+  const tc = await page.getTextContent();
+  return tc.items
+    .filter(item => item.str && item.str.trim())
+    .map(item => ({ x: item.transform[4], y: item.transform[5], text: item.str.trim() }));
+}
+
+function textFromWords(words) {
+  return words
+    .slice()
+    .sort((a, b) => Math.abs(b.y - a.y) > 2 ? b.y - a.y : a.x - b.x)
+    .map(w => w.text)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function parseUnicredPDF(pdfDoc, fname) {
+  const txns = [];
+  let bancoInfo = 'Unicred';
+
+  const page1Words = await collectPDFWords(pdfDoc, 1);
+  const fullText1 = page1Words.map(w => w.text).join(' ');
+  const mConta = fullText1.match(/Coop:\s*([\d-]+).*?AG:\s*([\d-]+).*?Conta:\s*([\d.-]+)/i);
+  if (mConta) bancoInfo = `Unicred Coop.${mConta[1]} Ag.${mConta[2]} Cc.${mConta[3]}`;
+
+  const DATE_PAT = /^\d{2}\/\d{2}\/\d{4}$/;
+  const VAL_PAT = /^(?:R\$\s*)?-?\d{1,3}(?:\.\d{3})*,\d{2}$/;
+  const SKIP = /^(SALDO|DATA|DESCRI|HIST|VALOR|EXTRATO|CONTA|AG:|COOP:|TOTAL|LANCAMENTOS|LANÇAMENTOS)$/i;
+
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const words = await collectPDFWords(pdfDoc, p);
+    const anchors = [];
+
+    for (const w of words.slice().sort((a, b) => b.y - a.y || a.x - b.x)) {
+      if (!DATE_PAT.test(w.text) || w.x >= 35) continue;
+      const valInfo = extractPDFMoneyText(words.filter(v =>
+        Math.abs(v.y - w.y) < 2 &&
+        v.x > 360 && v.x < 480
+      ));
+      if (!valInfo) continue;
+      const isNeg = words.some(v => v.text === '-' && v.x > 370 && v.x < 395 && Math.abs(v.y - w.y) < 2);
+      anchors.push({ y: w.y, date: w.text, val: valInfo.text, neg: isNeg || valInfo.tipo === 'saida' });
+    }
+
+    anchors.sort((a, b) => b.y - a.y);
+
+    for (let i = 0; i < anchors.length; i++) {
+      const anc = anchors[i];
+      const nextY = anchors[i + 1]?.y ?? (anc.y - 100);
+      const lowerY = Math.max(anc.y - 15, nextY + 5);
+      const upperY = anc.y + 15;
+      const histWords = words.filter(w =>
+        w.x >= 80 && w.x < 380 &&
+        w.y >= lowerY && w.y <= upperY &&
+        !SKIP.test(w.text)
+      );
+      let hist = textFromWords(histWords)
+        .replace(/\s*\(\s*Doc\.:\s*\S+\s*\)/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!hist) hist = 'Lançamento Unicred';
+
+      let rawVal = pdfMoneyToNumber(anc.val);
+      if (anc.neg) rawVal = -Math.abs(rawVal);
+      if (!isFinite(rawVal) || rawVal === 0) continue;
+
+      const [dd, mm, yyyy] = anc.date.split('/');
+      const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, yyyy);
+      const tipo = rawVal < 0 ? 'saida' : 'entrada';
+      txns.push(makeTxn(date, monthKey, monthLabel, dateSerial, fixEnc(hist), tipo, Math.abs(rawVal), 'Unicred', bancoInfo, fname));
+    }
+  }
+
+  return txns;
+}
+
+async function parseItauPDF(pdfDoc, fname) {
+  const txns = [];
+  let bancoInfo = 'Itaú';
+
+  const page1Words = await collectPDFWords(pdfDoc, 1);
+  const fullText1 = page1Words.map(w => w.text).join(' ');
+  const mConta = fullText1.match(/Ag[eê]ncia\s+(\d+).*?Conta\s+([\d.-]+)/i);
+  if (mConta) bancoInfo = `Itaú Ag.${mConta[1]} Cc.${mConta[2]}`;
+
+  const DATE_PAT = /^\d{2}\/\d{2}\/\d{4}$/;
+  const SKIP = /^(SALDO|DATA|LANCAMENTOS|LANÇAMENTOS|RAZAO|RAZÃO|CNPJ|CPF|VALOR|AGENCIA|AGÊNCIA|CONTA)$/i;
+  const IGNORE = /saldo (do dia|total dispon[ií]vel)|saldo total|saldo anterior|lan[çc]amentos do per[ií]odo|saldo total limite/i;
+
+  let currentDate = null;
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const words = await collectPDFWords(pdfDoc, p);
+    const rows = [];
+    for (const item of words) {
+      let row = rows.find(r => Math.abs(r.y - item.y) < 3);
+      if (!row) { row = { y: item.y, items: [] }; rows.push(row); }
+      row.items.push(item);
+    }
+    rows.sort((a, b) => b.y - a.y || Math.min(...a.items.map(i => i.x)) - Math.min(...b.items.map(i => i.x)));
+
+    // Itaú layout em colunas: alguns rendimentos AUT MAIS aparecem como
+    // linha anterior "AUT MAIS", linha com data+valor, linha seguinte "RENDIMENTOS...".
+    for (const row of rows) {
+      const rowItems = row.items.slice().sort((a, b) => a.x - b.x);
+      const dateItem = rowItems.find(i => i.x < 90 && DATE_PAT.test(i.text));
+      if (!dateItem) continue;
+      const valInfo = extractPDFMoneyText(rowItems.filter(i => i.x >= 450 && i.x < 535), { defaultTipo: 'entrada' });
+      if (!valInfo || valInfo.tipo === 'saida') continue;
+      const ownHist = cleanItauHistory(textFromWords(rowItems.filter(i => i.x >= 88 && i.x < 450 && !DATE_PAT.test(i.text))));
+      if (ownHist) continue;
+      const nearText = rows
+        .filter(r => r !== row && Math.abs(r.y - row.y) <= 7)
+        .map(r => textFromWords(r.items.filter(i => i.x >= 80 && i.x < 380)))
+        .join(' ');
+      if (!/aut mais/i.test(nearText) || !/rendimentos?\s+rend pago aplic/i.test(nearText)) continue;
+
+      const [dd, mm, yyyy] = dateItem.text.split('/');
+      const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, yyyy);
+      const exists = txns.some(t =>
+        t.banco === 'Itaú' &&
+        t.date === date &&
+        Math.abs(t.value - valInfo.value) < 0.001 &&
+        /rendimentos.*aut mais|aut mais.*rendimentos/i.test(t.descFull || t.desc || '')
+      );
+      if (!exists) {
+        const hist = 'RENDIMENTOS REND PAGO APLIC AUT MAIS';
+        txns.push(makeTxnWithComplement(date, monthKey, monthLabel, dateSerial, hist, hist, 'entrada', valInfo.value, 'Itaú', bancoInfo, fname));
+      }
+    }
+
+    for (const row of rows) {
+      const rowItems = row.items.slice().sort((a, b) => a.x - b.x);
+      const rowText = rowItems.map(i => i.text).join('').replace(/\s+/g, ' ').trim();
+      const dateItem = rowItems.find(i => i.x < 90 && DATE_PAT.test(i.text));
+
+      if (DATE_PAT.test(rowText)) {
+        currentDate = rowText;
+        continue;
+      }
+
+      const inlineValue = dateItem
+        ? (extractPDFMoneyText(rowItems.filter(i => i.x >= 450), { defaultTipo: 'entrada' }) ||
+           extractPDFMoneyText([{ x: 0, text: rowText }], { defaultTipo: 'entrada' }))
+        : null;
+      if (dateItem && inlineValue) {
+        const lancamento = textFromWords(rowItems.filter(i =>
+          i.x >= 88 && i.x < 225 &&
+          !DATE_PAT.test(i.text) &&
+          !SKIP.test(i.text)
+        ));
+        const razao = textFromWords(rowItems.filter(i => i.x >= 225 && i.x < 365 && !SKIP.test(i.text)));
+        const doc = textFromWords(rowItems.filter(i => i.x >= 365 && i.x < 455 && !SKIP.test(i.text)));
+        let hist = textFromWords(rowItems.filter(i =>
+          i.x >= 88 && i.x < 450 &&
+          !DATE_PAT.test(i.text) &&
+          !SKIP.test(i.text)
+        ));
+        if (!hist) hist = rowText.replace(dateItem.text, '').replace(inlineValue.text, '');
+        if (!cleanItauHistory(hist)) {
+          const nearRows = rows
+            .filter(r => r !== row && Math.abs(r.y - row.y) <= 9)
+            .sort((a, b) => a.y - b.y);
+          const nearHist = nearRows.map(r => textFromWords(r.items.filter(i =>
+            i.x >= 88 && i.x < 365 &&
+            !DATE_PAT.test(i.text) &&
+            !extractPDFMoneyText([i]) &&
+            !SKIP.test(i.text) &&
+            !/saldo|data|valor|cnpj|cpf/i.test(i.text)
+          ))).filter(Boolean).join(' ');
+          if (nearHist) hist = nearHist;
+        }
+        const complemento = cleanItauHistory([lancamento, razao, doc].filter(Boolean).join(' - ') || hist);
+        hist = cleanItauHistory(hist);
+        if (/aut mais/i.test(hist) && /rend/i.test(hist) && !/^rend/i.test(hist)) {
+          hist = 'RENDIMENTOS REND PAGO APLIC AUT MAIS';
+        }
+        if (!hist || IGNORE.test(hist)) continue;
+
+        const rawVal = inlineValue.tipo === 'saida' ? -inlineValue.value : inlineValue.value;
+        if (!isFinite(rawVal) || rawVal === 0) continue;
+
+        const [dd, mm, yyyy] = dateItem.text.split('/');
+        const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, yyyy);
+        const tipo = rawVal < 0 ? 'saida' : 'entrada';
+        if (/rendimentos.*aut mais|aut mais.*rendimentos/i.test(hist)) {
+          const exists = txns.some(t =>
+            t.banco === 'Itaú' &&
+            t.date === date &&
+            Math.abs(t.value - Math.abs(rawVal)) < 0.001 &&
+            /rendimentos.*aut mais|aut mais.*rendimentos/i.test(t.descFull || t.desc || '')
+          );
+          if (exists) continue;
+        }
+        txns.push(makeTxnWithComplement(date, monthKey, monthLabel, dateSerial, fixEnc(hist), fixEnc(complemento), tipo, Math.abs(rawVal), 'Itaú', bancoInfo, fname));
+        continue;
+      }
+
+      if (!currentDate) continue;
+      const valInfo = extractPDFMoneyText(rowItems.filter(i => i.x >= 500), { defaultTipo: 'entrada' }) ||
+        extractPDFMoneyText([{ x: 0, text: rowText }], { defaultTipo: 'entrada' });
+      if (!valInfo) continue;
+
+      let hist = textFromWords(rowItems.filter(i =>
+        i.x >= 88 && i.x < 500 &&
+        !extractPDFMoneyText([i]) &&
+        !DATE_PAT.test(i.text) &&
+        !SKIP.test(i.text)
+      ));
+      if (!hist) hist = rowText.replace(valInfo.text, '');
+      hist = cleanItauHistory(hist);
+      if (!hist || IGNORE.test(hist)) continue;
+
+      const rawVal = valInfo.tipo === 'saida' ? -valInfo.value : valInfo.value;
+      if (!isFinite(rawVal) || rawVal === 0) continue;
+
+      const [dd, mm, yyyy] = currentDate.split('/');
+      const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, yyyy);
+      const tipo = rawVal < 0 ? 'saida' : 'entrada';
+      txns.push(makeTxn(date, monthKey, monthLabel, dateSerial, fixEnc(hist), tipo, Math.abs(rawVal), 'Itaú', bancoInfo, fname));
+    }
+
+    // Itaú: algumas linhas de rendimento AUT MAIS vêm como data+valor,
+    // com "AUT MAIS" acima e "RENDIMENTOS REND PAGO APLIC" abaixo.
+    for (const row of rows) {
+      const rowItems = row.items.slice().sort((a, b) => a.x - b.x);
+      const dateItem = rowItems.find(i => i.x < 90 && DATE_PAT.test(i.text));
+      if (!dateItem) continue;
+      const valInfo = extractPDFMoneyText(rowItems.filter(i => i.x >= 450), { defaultTipo: 'entrada' });
+      if (!valInfo || valInfo.tipo === 'saida') continue;
+      const ownHist = textFromWords(rowItems.filter(i => i.x >= 88 && i.x < 450 && !DATE_PAT.test(i.text)));
+      if (cleanItauHistory(ownHist)) continue;
+      const nearText = rows
+        .filter(r => r !== row && Math.abs(r.y - row.y) <= 9)
+        .map(r => textFromWords(r.items.filter(i => i.x >= 88 && i.x < 365)))
+        .join(' ');
+      if (!/aut mais/i.test(nearText) || !/rendimentos/i.test(nearText)) continue;
+
+      const [dd, mm, yyyy] = dateItem.text.split('/');
+      const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, yyyy);
+      const exists = txns.some(t =>
+        t.banco === 'Itaú' &&
+        t.date === date &&
+        Math.abs(t.value - valInfo.value) < 0.001 &&
+        /rendimentos.*aut mais|aut mais.*rendimentos/i.test(t.descFull || t.desc || '')
+      );
+      if (!exists) {
+        const hist = 'RENDIMENTOS REND PAGO APLIC AUT MAIS';
+        txns.push(makeTxnWithComplement(date, monthKey, monthLabel, dateSerial, hist, hist, 'entrada', valInfo.value, 'Itaú', bancoInfo, fname));
+      }
+    }
+  }
+
+  return txns;
+}
+
+function cleanItauHistory(hist) {
+  return String(hist || '')
+    .replace(/-?\s*R\$\s*\d{1,3}(?:\.\d{3})*,\d{2}/gi, '')
+    .replace(/-?\s*\d{1,3}(?:\.\d{3})*,\d{2}\s*$/gi, '')
+    .replace(/REDECARD\s+INSTITUICAO\s+DE\s*/gi, '')
+    .replace(/\bPAGAMENTO\s+S\.A\.\b/gi, '')
+    .replace(/\bCD\d+\b/gi, '')
+    .replace(/\s*\d{2}\/\d{2}\s*$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function parseBancoBrasilPDF(pdfDoc, fname) {
+  const txns = [];
+  let bancoInfo = 'Banco do Brasil';
+  const DATE_PAT = /^\d{2}\/\d{2}\/\d{3,4}$/;
+  const VAL_PAT = /^\d{1,3}(?:\.\d{3})*,\d{2}\s*\([+-]\)$|^\d+,\d{2}\s*\([+-]\)$/;
+  const IGNORE_HIST = /saldo (anterior|do dia|bloq|bloqueado)|saldo anterior|saldo bloqueado|dep[oó]sito bloquead|deposito bloquead|ordem interna|ordens internas|lan[çc]amento futuro|pre[- ]?lan[çc]amento/i;
+  const SKIP = /^(Saldo Anterior|Saldo|Valor Total|Valor Liberado|Lançamentos|Lancamentos|Dia|Lote|Documento|Histórico|Historico|Valor)$/i;
+  let defaultYear = (fname.match(/20\d{2}/) || [String(new Date().getFullYear())])[0];
+
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const words = await collectPDFWords(pdfDoc, p);
+    if (p === 1) {
+      const pageText = words.map(w => w.text).join(' ');
+      const mConta = pageText.match(/Ag[eê]ncia:\s*([\d-]+)\s+Conta:\s*([\d-]+)/i);
+      if (mConta) bancoInfo = `Banco do Brasil Ag.${mConta[1]} Cc.${mConta[2]}`;
+      const fullDate = words.find(w => /^\d{2}\/\d{2}\/\d{4}$/.test(w.text) && !/^00\/00/.test(w.text));
+      if (fullDate) defaultYear = fullDate.text.split('/')[2];
+    }
+
+    const rows = [];
+    for (const item of words) {
+      let row = rows.find(r => Math.abs(r.y - item.y) < 3);
+      if (!row) { row = { y: item.y, items: [] }; rows.push(row); }
+      row.items.push(item);
+    }
+    rows.sort((a, b) => b.y - a.y);
+
+    const anchors = rows.map((row, idx) => {
+      const dateItem = row.items.find(t => t.x < 80 && DATE_PAT.test(t.text));
+      if (!dateItem) return null;
+      const valInfo = extractPDFMoneyText(words.filter(v =>
+        Math.abs(v.y - dateItem.y) <= 7 &&
+        v.x > 500 && v.x < 585
+      ));
+      return valInfo ? { idx, y: dateItem.y, date: dateItem.text, val: valInfo.text, valInfo } : null;
+    }).filter(Boolean);
+
+    for (let i = 0; i < anchors.length; i++) {
+      const anc = anchors[i];
+      const nextY = anchors[i + 1]?.y ?? -9999;
+      const histItems = [];
+      for (const row of rows) {
+        histItems.push(...row.items.filter(t =>
+          t.x >= 250 && t.x < 500 &&
+          t.y <= anc.y + 8 &&
+          t.y > nextY + 7 &&
+          !SKIP.test(t.text) &&
+          !DATE_PAT.test(t.text) &&
+          !extractPDFMoneyText([t])
+        ));
+      }
+      let hist = textFromWords(histItems).trim();
+      if (!hist || SKIP.test(hist)) hist = 'Lançamento Banco do Brasil';
+
+      if (IGNORE_HIST.test(hist) && !/bb rende|rende facil|rende f[aá]cil|cdb/i.test(hist)) continue;
+      const rawVal = anc.valInfo.value;
+      if (!isFinite(rawVal) || rawVal === 0) continue;
+      const tipo = anc.valInfo.tipo || (/\(-\)|-/.test(anc.val) ? 'saida' : 'entrada');
+      let [dd, mm, yyyy] = anc.date.split('/');
+      if (yyyy.length < 4 && defaultYear.startsWith(yyyy)) yyyy = defaultYear;
+      if (yyyy.length < 4) yyyy = defaultYear;
+      const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, yyyy);
+      txns.push(makeTxn(date, monthKey, monthLabel, dateSerial, fixEnc(hist), tipo, Math.abs(rawVal), 'Banco do Brasil', bancoInfo, fname));
+    }
+  }
+
+  return txns;
+}
+
+function parseBancoOFX(text) {
+  const get = (tag, t) => { const m = t.match(new RegExp('<' + tag + '>([^<\\r\\n]+)', 'i')); return m ? m[1].trim() : ''; };
+  const bankid = get('BANKID', text) || get('FID', text) || '';
+  const acctid = get('ACCTID', text) || '';
+  const branchid = get('BRANCHID', text) || '';
+  const org = get('ORG', text) || '';
+  const nomes = { '001': 'Banco do Brasil', '033': 'Santander', '041': 'Banrisul', '104': 'Caixa', '237': 'Bradesco', '341': 'Itaú', '756': 'Sicoob', '748': 'Sicredi', '077': 'Inter', '260': 'Nubank', '336': 'C6 Bank', '212': 'Banco Original', '422': 'Safra', '070': 'BRB' };
+  const nome = nomes[bankid] || org || `Banco ${bankid || '?'}`;
+  let info = nome;
+  if (branchid) info += ` Ag.${branchid}`;
+  if (acctid) info += ` Cc.${acctid}`;
+  return { nome, info };
+}
+
+function parseOFX(text, fname) {
+  const banco = parseBancoOFX(text);
+  const txns = [];
+  (text.match(/<STMTTRN>([\s\S]*?)<\/STMTTRN>/gi) || []).forEach(block => {
+    const get = tag => { const m = block.match(new RegExp('<' + tag + '>([^<\\r\\n]+)', 'i')); return m ? m[1].trim() : ''; };
+    const dp = get('DTPOSTED'), amt = parseFloat(get('TRNAMT').replace(',', '.')), memo = fixEnc(get('MEMO') || get('NAME') || '');
+    if (!dp || isNaN(amt)) return;
+    const y = dp.substring(0, 4), mo = dp.substring(4, 6), d = dp.substring(6, 8);
+    const { date, monthKey, monthLabel, dateSerial } = mkMk(d, mo, y);
+    const tipo = amt >= 0 ? 'entrada' : 'saida';
+    txns.push(makeTxn(date, monthKey, monthLabel, dateSerial, memo, tipo, Math.abs(amt), banco.nome, banco.info, fname));
+  });
+  return txns;
+}
+
+// ── PARSER PDF GENÉRICO ────────────────────────────────────────────────────────
+function parsePDFGenerico(text, fname) {
+  const txns = [], bancoLabel = fname.replace(/\.[^.]+$/, '');
+  text.split('\n').forEach(line => {
+    const dm = line.match(/(\d{2}\/\d{2}\/\d{2,4})/);
+    const vm = line.match(/([\-]?\d{1,3}(?:\.\d{3})*,\d{2})/g);
+    if (!dm || !vm) return;
+    let [d, m, y] = dm[1].split('/');
+    if (y && y.length === 2) y = '20' + y;
+    if (!y) return;
+    const desc = fixEnc(line.replace(dm[0], '').replace(/[\-]?\d{1,3}(?:\.\d{3})*,\d{2}/g, '').replace(/\s+/g, ' ').trim());
+    if (!desc) return;
+    vm.forEach(vs => {
+      const raw = parseFloat(vs.replace(/\./g, '').replace(',', '.'));
+      const val = Math.round(Math.abs(raw) * 100) / 100;
+      if (!val) return;
+      const tipo = raw < 0 ? 'saida' : 'entrada';
+      const { date, monthKey, monthLabel, dateSerial } = mkMk(d, m, y);
+      txns.push(makeTxn(date, monthKey, monthLabel, dateSerial, desc, tipo, val, bancoLabel, bancoLabel, fname));
+    });
+  });
+  return txns;
+}
+
+// ── REGISTRO DE BANCOS ──────────────────────────────────────────────────────
+// Para adicionar um novo banco PDF:
+//   1. Crie parseXxxPDF(pdfDoc, fname, sample) retornando txns[]
+//   2. Adicione entrada em BANCO_PARSERS ANTES da entrada "Genérico"
+// Cada parser é isolado — mudar um não afeta os outros.
+function loadScriptOnce(src, globalName) {
+  return new Promise((resolve, reject) => {
+    if (globalName && window[globalName]) return resolve(window[globalName]);
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      existing.addEventListener('load', () => resolve(globalName ? window[globalName] : true), { once: true });
+      existing.addEventListener('error', reject, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve(globalName ? window[globalName] : true);
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+function parseOCRExtratoText(text, fname) {
+  const txns = [], bancoLabel = /ita[uú]/i.test(fname) ? 'Itaú' : fname.replace(/\.[^.]+$/, '');
+  const lines = text.split(/\r?\n/).map(l => fixEnc(l).replace(/\s+/g, ' ').trim()).filter(Boolean);
+  for (const line of lines) {
+    const dm = line.match(/(\d{2}[\/\.-]\d{2}[\/\.-]\d{4})/);
+    if (!dm) continue;
+    const values = line.match(/-?\d{1,3}(?:\.\d{3})*,\d{2}|-?\d+,\d{2}/g);
+    if (!values || !values.length) continue;
+    const valRawText = values[values.length - 1];
+    let raw = pdfMoneyToNumber(valRawText);
+    if (!isFinite(raw) || raw === 0) continue;
+
+    const [dd, mm, yyyy] = dm[1].replace(/[.-]/g, '/').split('/');
+    const desc = line
+      .replace(dm[0], '')
+      .replace(valRawText, '')
+      .replace(/\b\d{2}[\/\.-]\d{2}[\/\.-]\d{4}\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!desc || /saldo|total|limite|disponivel|disponível/i.test(desc)) continue;
+
+    let tipo = raw < 0 ? 'saida' : 'entrada';
+    if (raw > 0 && /enviado|pagamento|boleto|tarifa|d[eé]bito|pix enviado|ted enviada|saque/i.test(desc)) tipo = 'saida';
+    if (/receb|cr[eé]dito|deposit|rede|pix recebido|ted recebida/i.test(desc)) tipo = 'entrada';
+    const { date, monthKey, monthLabel, dateSerial } = mkMk(dd, mm, yyyy);
+    txns.push(makeTxn(date, monthKey, monthLabel, dateSerial, desc, tipo, Math.abs(raw), bancoLabel, bancoLabel, fname));
+  }
+  return txns;
+}
+
+async function parsePDFWithOCR(pdf, fname) {
+  const procSub = document.getElementById('proc-sub');
+  if (procSub) procSub.textContent = 'PDF sem texto detectado. Rodando OCR...';
+  await loadScriptOnce('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js', 'Tesseract');
+  const chunks = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    if (procSub) procSub.textContent = `OCR página ${p}/${pdf.numPages}...`;
+    const page = await pdf.getPage(p);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const result = await Tesseract.recognize(canvas, 'por');
+    chunks.push(result?.data?.text || '');
+    canvas.remove();
+  }
+  if (procSub) procSub.textContent = 'Interpretando texto do OCR...';
+  return parseOCRExtratoText(chunks.join('\n'), fname);
+}
+
+const BANCO_PARSERS = [
+  {
+    nome: 'Sicoob',
+    detect: (s, fname) => /SICOOB|INTERCREDIS|CREDICITRUS|Cooperativa:|HIST.RICO DE MOVIMENTA..O/i.test(`${s} ${fname}`),
+    parse: (pdf, fname, sample) => parseSicoobPDFCoords(pdf, fname, sample),
+  },
+  {
+    nome: 'Unicred',
+    detect: (s, fname) => /UNICRED/i.test(`${s} ${fname}`),
+    parse: (pdf, fname, sample) => parseUnicredPDF(pdf, fname, sample),
+  },
+  {
+    nome: 'Itaú',
+    detect: (s, fname) => /ita[uú]/i.test(`${s} ${fname}`),
+    parse: (pdf, fname, sample) => parseItauPDF(pdf, fname, sample),
+  },
+  {
+    nome: 'Banco do Brasil',
+    detect: (s, fname) => /Banco do Brasil|BB Rende|Extrato de Conta Corrente|Ag[eê]ncia:\s*[\d-]+\s+Conta:/i.test(`${s} ${fname}`),
+    parse: (pdf, fname, sample) => parseBancoBrasilPDF(pdf, fname, sample),
+  },
+  // ── Adicione novos bancos aqui, antes do Genérico ──
+  // {
+  //   nome: 'Bradesco',
+  //   detect: s => /bradesco|Banco 237/i.test(s),
+  //   parse: (pdf, fname, sample) => parseBradescoPDF(pdf, fname, sample),
+  // },
+  {
+    nome: 'Genérico',
+    detect: () => true,
+    parse: async (pdf, fname) => {
+      let fullText = '';
+      for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        let lastY = null, line = '';
+        for (const item of tc.items) {
+          const y = Math.round(item.transform[5]);
+          if (lastY !== null && Math.abs(y - lastY) > 2) { fullText += line.trimEnd() + '\n'; line = ''; }
+          line += item.str; lastY = y;
+        }
+        if (line) fullText += line + '\n';
+      }
+      return parsePDFGenerico(fullText, fname);
+    },
+  },
+];
+
+async function detectAndParse(pdfDoc, fname, sample) {
+  for (const banco of BANCO_PARSERS) {
+    if (banco.detect(sample, fname)) {
+      console.log('[PDF] ' + banco.nome + ' detectado — ' + fname);
+      return banco.parse(pdfDoc, fname, sample);
+    }
+  }
+}
+
+// ── LEITURA ───────────────────────────────────────────────────────────────────
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
+}
+
+async function handleFiles(files) {
+  if (!files || !files.length) return;
+  showScreen('proc');
+  allTxns = [];
+  sourceCompanies = {};
+  importValidations = {};
+  const arr = Array.from(files);
+
+  // Monta lista de arquivos na tela de processo
+  const pf = document.getElementById('proc-files');
+  pf.innerHTML = arr.map((f, i) =>
+    `<div class="proc-file" id="pf-${i}"><div class="dot"></div><span>${f.name}</span><span style="margin-left:auto;color:var(--text3);font-size:10px">${(f.size / 1024).toFixed(0)} KB</span></div>`
+  ).join('');
+
+  for (let i = 0; i < arr.length; i++) {
+    const file = arr[i];
+    const el = document.getElementById(`pf-${i}`);
+    if (el) el.classList.add('processing');
+    document.getElementById('proc-sub').textContent = `${file.name} (${i + 1}/${arr.length})`;
+
+    try {
+      const name = file.name.toLowerCase();
+      if (name.endsWith('.pdf')) {
+        const txns = await readPDF(file);
+        allTxns = allTxns.concat(txns);
+      } else {
+        const text = await readText(file);
+        const txns = parseOFX(fixEnc(text), file.name);
+        const empresa = extractStatementCompany(text, file.name);
+        txns.forEach(t => { t.empresa = empresa; refreshTxnCategory(t); });
+        sourceCompanies[file.name] = empresa;
+        importValidations[file.name] = validateImportedStatement(file.name, txns, []);
+        allTxns = allTxns.concat(txns);
+      }
+    } catch (e) { console.error(file.name, e); }
+
+    const el2 = document.getElementById(`pf-${i}`);
+    if (el2) { el2.classList.remove('processing'); el2.classList.add('done'); }
+  }
+
+  allTxns = dedupeTxns(allTxns);
+
+  if (allTxns.length === 0) {
+    alert('Nenhuma transação encontrada. Verifique se os arquivos são válidos.');
+    showScreen('upload'); return;
+  }
+  buildResults(arr);
+}
+
+async function readPDF(file) {
+  if (typeof pdfjsLib === 'undefined') {
+    throw new Error('PDF.js não carregado — verifique conexão com internet na primeira abertura');
+  }
+  const ab = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: ab }).promise;
+
+  // Lê amostra da pág. 1 para detectar o banco
+  const page1 = await pdf.getPage(1);
+  const tc1 = await page1.getTextContent();
+  const fullSample = tc1.items.map(i => i.str).join(' ');
+  const sample = fullSample.substring(0, 800);
+
+  // Delega para o parser correto via registro de bancos
+  let txns = await detectAndParse(pdf, file.name, sample);
+  if ((!txns || txns.length === 0) && !sample.trim()) {
+    throw new Error('PDF em imagem/OCR não suportado. Envie OFX ou PDF com texto selecionável.');
+  }
+  const empresa = extractStatementCompany(fullSample, file.name);
+  sourceCompanies[file.name] = empresa;
+  (txns || []).forEach(t => { t.empresa = empresa; refreshTxnCategory(t); });
+  importValidations[file.name] = validateImportedStatement(file.name, txns || [], await collectAllPDFWords(pdf));
+  return txns || [];
+}
+
+function readText(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => {
+      const c = e.target.result;
+      const bad = (c.match(/\uFFFD/g) || []).length;
+      if (bad > 5) {
+        const r2 = new FileReader();
+        r2.onload = e2 => res(e2.target.result);
+        r2.onerror = rej;
+        r2.readAsText(file, 'iso-8859-1');
+      } else res(c);
+    };
+    r.onerror = rej;
+    r.readAsText(file, 'utf-8');
+  });
+}
+
+async function collectAllPDFWords(pdfDoc) {
+  const all = [];
+  for (let p = 1; p <= pdfDoc.numPages; p++) {
+    const words = await collectPDFWords(pdfDoc, p);
+    words.forEach(w => all.push({ ...w, page: p }));
+  }
+  return all;
+}
+
+function signedMoneyFromText(text) {
+  const m = String(text || '').match(/-?\s*(?:R\$)?\s*\d{1,3}(?:\.\d{3})*,\d{2}[DC]?|-?\s*(?:R\$)?\s*\d+,\d{2}[DC]?/i);
+  if (!m) return null;
+  const raw = m[0];
+  const val = pdfMoneyToNumber(raw);
+  const abs = Math.abs(val);
+  if (/D$/i.test(raw) || /^-/.test(raw.trim())) return -abs;
+  return abs;
+}
+
+function extractBalancePoints(words) {
+  if (!words || !words.length) return [];
+  const rows = [];
+  for (const item of words) {
+    let row = rows.find(r => r.page === item.page && Math.abs(r.y - item.y) < 3);
+    if (!row) { row = { page: item.page, y: item.y, items: [] }; rows.push(row); }
+    row.items.push(item);
+  }
+  rows.sort((a, b) => a.page - b.page || a.y - b.y);
+  const points = [];
+  for (const row of rows) {
+    const text = row.items.slice().sort((a, b) => a.x - b.x).map(i => i.text).join(' ').replace(/\s+/g, ' ').trim();
+    const norm = fixEnc(text);
+    if (!/saldo/i.test(norm)) continue;
+    if (/bloq|bloqueado|disponível|disponivel|limite|futuro/i.test(norm) && !/saldo (anterior|do dia|total disponível dia|total disponivel dia|final do período|final do periodo)/i.test(norm)) continue;
+    const value = signedMoneyFromText(norm);
+    if (value == null) continue;
+    const dm = norm.match(/(\d{2}\/\d{2}\/\d{4}|\d{2}\/\d{2})/);
+    const kind = /anterior|saldo em\s+\d{2}\/\d{2}\/\d{4}/i.test(norm) ? 'inicial'
+      : /final do per|saldo do dia|total disponível dia|total disponivel dia|saldo em conta/i.test(norm) ? 'final'
+      : 'saldo';
+    points.push({ kind, value, text: norm, date: dm?.[1] || '' });
+  }
+  return points;
+}
+
+function validateImportedStatement(fname, txns, words) {
+  const entradas = txns.filter(t => t.tipo === 'entrada').reduce((s, t) => s + t.value, 0);
+  const saidas = txns.filter(t => t.tipo === 'saida').reduce((s, t) => s + t.value, 0);
+  const movimento = Math.round((entradas - saidas) * 100) / 100;
+  const orderedTxns = txns.slice().sort((a, b) => a.dateSerial - b.dateSerial);
+  const firstTxn = orderedTxns[0] || {};
+  const points = extractBalancePoints(words);
+  const inicial = points.find(p => p.kind === 'inicial') || null;
+  const finalCandidates = points.filter(p => p.kind === 'final' || p.kind === 'saldo');
+  const expectedFinal = inicial ? Math.round((inicial.value + movimento) * 100) / 100 : null;
+  const final = expectedFinal == null
+    ? [...points].reverse().find(p => p.kind === 'final') || null
+    : finalCandidates.sort((a, b) => Math.abs(a.value - expectedFinal) - Math.abs(b.value - expectedFinal))[0] || null;
+  const diff = inicial && final ? Math.round((movimento - (final.value - inicial.value)) * 100) / 100 : null;
+  return {
+    fname,
+    count: txns.length,
+    entradas: Math.round(entradas * 100) / 100,
+    saidas: Math.round(saidas * 100) / 100,
+    movimento,
+    saldoAnterior: inicial?.value ?? null,
+    saldoFinal: final?.value ?? null,
+    bankKey: firstTxn.bancoInfo || firstTxn.banco || fname,
+    startTime: firstTxn.dateSerial ? firstTxn.dateSerial.getTime() : 0,
+    endTime: orderedTxns.at(-1)?.dateSerial ? orderedTxns.at(-1).dateSerial.getTime() : 0,
+    diff,
+    status: diff == null ? 'sem-saldo' : Math.abs(diff) <= 1 ? 'ok' : 'erro'
+  };
+}
+
+// ── BUILD RESULTS ─────────────────────────────────────────────────────────────
+function buildResults(fileArr) {
+  allTxns.sort((a, b) => a.dateSerial - b.dateSerial);
+  const months = [...new Set(allTxns.map(t => t.monthKey))].sort();
+  const bancos = [...new Set(allTxns.map(t => t.banco))].filter(Boolean);
+
+  document.getElementById('res-title').textContent =
+    `${allTxns.length.toLocaleString('pt-BR')} transações · ${months.length} ${months.length === 1 ? 'mês' : 'meses'}`;
+  document.getElementById('file-chips').innerHTML =
+    fileArr.map(f => `<span class="file-chip">📄 ${f.name}</span>`).join('');
+  renderCompanyCheck(fileArr);
+  document.getElementById('btn-novo').style.display = 'block';
+
+  // Month selector
+  document.getElementById('month-row').innerHTML =
+    '<button class="month-btn active" onclick="selMes(this,\'\')">Todos</button>' +
+    months.map(mk => `<button class="month-btn" onclick="selMes(this,'${mk}')">${allTxns.find(t => t.monthKey === mk)?.monthLabel || mk}</button>`).join('');
+
+  // Filters
+  const cats = [...new Set(allTxns.map(t => t.cat))].sort();
+  document.getElementById('f-cat').innerHTML = '<option value="">Todas as categorias</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById('f-banco').innerHTML = '<option value="">Todos os bancos</option>' + bancos.map(b => `<option value="${b}">${b}</option>`).join('');
+  const mOpts = '<option value="">Todos os meses</option>' + months.map(mk => `<option value="${mk}">${allTxns.find(t => t.monthKey === mk)?.monthLabel || mk}</option>`).join('');
+  document.getElementById('f-trf-mes').innerHTML = mOpts;
+
+  renderAll();
+  showScreen('results');
+  document.getElementById('hdr-info').textContent = `${fileArr.length} arquivo(s) · ${allTxns.length} lançamentos`;
+}
+
+function renderCompanyCheck(fileArr) {
+  const el = document.getElementById('company-check');
+  const issues = renderImportValidationIssues(fileArr);
+  const found = fileArr
+    .map(f => ({ file: f.name, empresa: sourceCompanies[f.name] || '' }))
+    .filter(x => x.empresa);
+  const distinct = [...new Set(found.map(x => x.empresa.toLowerCase()))];
+  if (!found.length) {
+    el.className = 'company-check';
+    el.innerHTML = 'Empresa do cabeçalho: não identificada nos arquivos enviados.' + issues;
+    return;
+  }
+  if (distinct.length === 1 && found.length === fileArr.length) {
+    el.className = 'company-check ok';
+    el.innerHTML = `Empresa conferida nos cabeçalhos: ${found[0].empresa}.` + issues;
+    return;
+  }
+  if (distinct.length === 1) {
+    el.className = 'company-check';
+    el.innerHTML = `Empresa identificada em parte dos arquivos: ${found[0].empresa}. Alguns extratos não trouxeram cabeçalho suficiente.` + issues;
+    return;
+  }
+  el.className = 'company-check warn';
+  el.innerHTML = 'Atenção: os cabeçalhos indicam empresas diferentes. Confira antes de exportar.' + issues;
+}
+
+function renderImportValidationHTML(fileArr) {
+  const vals = fileArr.map(f => importValidations[f.name]).filter(Boolean);
+  if (!vals.length) return '';
+  return '<div style="margin-top:6px;display:flex;flex-direction:column;gap:3px">' + vals.map(v => {
+    const cls = v.status === 'ok' ? 'var(--green)' : v.status === 'erro' ? 'var(--red)' : 'var(--text2)';
+    const status = v.status === 'ok' ? 'saldo validado'
+      : v.status === 'erro' ? `diferença R$ ${fmtBRL(v.diff)}`
+      : 'saldo não detectado no extrato';
+    const saldos = v.saldoAnterior != null && v.saldoFinal != null
+      ? ` · saldo ant. R$ ${fmtBRL(v.saldoAnterior)} · saldo final R$ ${fmtBRL(v.saldoFinal)}`
+      : '';
+    return `<span style="color:${cls}">${v.fname}: ${v.count} lanç. · entradas R$ ${fmtBRL(v.entradas)} · saídas R$ ${fmtBRL(v.saidas)} · mov. R$ ${fmtBRL(v.movimento)}${saldos} · ${status}</span>`;
+  }).join('') + '</div>';
+}
+
+function renderImportValidationIssues(fileArr) {
+  const vals = fileArr.map(f => importValidations[f.name]).filter(Boolean);
+  if (!vals.length) return '';
+  const erros = vals.filter(v => v.status === 'erro');
+  const parts = [];
+  if (erros.length) {
+    parts.push('Diferença em: ' + erros.map(v => `${v.fname} (R$ ${fmtBRL(v.diff)})`).join('; '));
+  }
+  if (!parts.length) return '';
+  return `<div style="margin-top:6px;color:var(--red);font-weight:600">${parts.join(' · ')}</div>`;
+}
+
+function selMes(btn, mk) {
+  document.querySelectorAll('.month-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentMes = mk;
+  renderAll();
+}
+
+function base() { return currentMes ? allTxns.filter(x => x.monthKey === currentMes) : allTxns; }
+
+function filt() {
+  let t = base();
+  const tipo = document.getElementById('f-tipo').value;
+  const cat = document.getElementById('f-cat').value;
+  const banco = document.getElementById('f-banco').value;
+  if (tipo) t = t.filter(x => x.tipo === tipo);
+  if (cat) t = t.filter(x => x.cat === cat);
+  if (banco) t = t.filter(x => x.banco === banco);
+  return t;
+}
+
+function renderAll() {
+  renderMetrics();
+  renderResumo();
+  renderCats();
+  renderTxns();
+  renderTrf();
+  renderMaiores();
+  renderExport();
+}
+
+// ── MÉTRICAS ─────────────────────────────────────────────────────────────────
+function currentValidationSummary() {
+  const t = base();
+  const sources = [...new Set(t.map(x => x.source).filter(Boolean))];
+  const vals = sources.map(src => importValidations[src]).filter(Boolean);
+  if (!vals.length) return null;
+
+  const withBalance = vals.filter(v => v.saldoAnterior != null && v.saldoFinal != null);
+  if (!withBalance.length) return { saldoAnterior: null, saldoFinal: null, diff: null, status: 'sem-saldo' };
+
+  if (withBalance.length === 1) return withBalance[0];
+
+  const groups = {};
+  withBalance.forEach(v => {
+    const key = v.bankKey || v.fname;
+    (groups[key] ||= []).push(v);
+  });
+  const ranges = Object.values(groups).map(group => {
+    const ordered = group.slice().sort((a, b) => (a.startTime || 0) - (b.startTime || 0));
+    return {
+      saldoAnterior: ordered[0].saldoAnterior,
+      saldoFinal: ordered[ordered.length - 1].saldoFinal
+    };
+  });
+  const saldoAnterior = ranges.reduce((s, v) => s + v.saldoAnterior, 0);
+  const saldoFinal = ranges.reduce((s, v) => s + v.saldoFinal, 0);
+  const diff = withBalance.reduce((s, v) => s + (v.diff || 0), 0);
+  return {
+    saldoAnterior: Math.round(saldoAnterior * 100) / 100,
+    saldoFinal: Math.round(saldoFinal * 100) / 100,
+    diff: Math.round(diff * 100) / 100,
+    status: Math.abs(diff) <= 1 ? 'ok' : 'erro'
+  };
+}
+
+function metricMoneyHTML(label, val, cls = '') {
+  if (val == null || !isFinite(val)) {
+    return `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value blue">--</div></div>`;
+  }
+  const color = cls || (val >= 0 ? 'green' : 'red');
+  return `<div class="metric"><div class="metric-label">${label}</div><div class="metric-value money ${color}" title="R$ ${fmtBRL(val)}">R$ ${fmtBRL(val)}</div></div>`;
+}
+
+function renderMetrics() {
+  const t = base();
+  const ent = t.filter(x => x.tipo === 'entrada').reduce((a, x) => a + x.value, 0);
+  const sai = t.filter(x => x.tipo === 'saida').reduce((a, x) => a + x.value, 0);
+  const sal = ent - sai;
+  const val = currentValidationSummary();
+  const diffCls = val?.diff == null ? 'blue' : Math.abs(val.diff) <= 1 ? 'green' : 'red';
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Entradas</div><div class="metric-value money green" title="R$ ${fmtBRL(ent)}">R$ ${fmtBRL(ent)}</div></div>
+    <div class="metric"><div class="metric-label">Saídas</div><div class="metric-value money red" title="R$ ${fmtBRL(sai)}">R$ ${fmtBRL(sai)}</div></div>
+    <div class="metric"><div class="metric-label">Saldo</div><div class="metric-value money ${sal >= 0 ? 'green' : 'red'}" title="R$ ${fmtBRL(sal)}">R$ ${fmtBRL(sal)}</div></div>
+    <div class="metric"><div class="metric-label">Lançamentos</div><div class="metric-value blue">${t.length.toLocaleString('pt-BR')}</div></div>
+    ${metricMoneyHTML('Saldo anterior', val?.saldoAnterior, 'blue')}
+    ${metricMoneyHTML('Saldo final', val?.saldoFinal)}
+    ${metricMoneyHTML('Diferença', val?.diff, diffCls)}`;
+}
+
+// ── RESUMO ────────────────────────────────────────────────────────────────────
+function renderResumo() {
+  const months = [...new Set(allTxns.map(t => t.monthKey))].sort();
+  const show = currentMes ? [currentMes] : months;
+  const labels = show.map(mk => allTxns.find(t => t.monthKey === mk)?.monthLabel || mk);
+  const entD = show.map(mk => allTxns.filter(t => t.monthKey === mk && t.tipo === 'entrada').reduce((a, t) => a + t.value, 0));
+  const saiD = show.map(mk => allTxns.filter(t => t.monthKey === mk && t.tipo === 'saida').reduce((a, t) => a + t.value, 0));
+  if (chartR) chartR.destroy();
+  const ctx = document.getElementById('chartResumo').getContext('2d');
+  const gradEnt = ctx.createLinearGradient(0, 0, 0, 300);
+  gradEnt.addColorStop(0, 'rgba(0,184,148,.42)');
+  gradEnt.addColorStop(1, 'rgba(0,184,148,.10)');
+  const gradSai = ctx.createLinearGradient(0, 0, 0, 300);
+  gradSai.addColorStop(0, 'rgba(239,71,111,.36)');
+  gradSai.addColorStop(1, 'rgba(239,71,111,.10)');
+  chartR = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Entradas', data: entD, backgroundColor: gradEnt, borderColor: '#00b894', borderWidth: 1.5, borderRadius: 8, borderSkipped: false, maxBarThickness: 34 },
+      { label: 'Saídas', data: saiD, backgroundColor: gradSai, borderColor: '#ef476f', borderWidth: 1.5, borderRadius: 8, borderSkipped: false, maxBarThickness: 34 }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 8, right: 2, bottom: 0, left: 4 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0f172a',
+          titleColor: '#fff',
+          bodyColor: '#e8eaf0',
+          borderColor: 'rgba(255,255,255,.12)',
+          borderWidth: 1,
+          padding: 10,
+          displayColors: true,
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: R$ ${fmtBRL(ctx.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        y: {
+          border: { display: false },
+          ticks: { callback: v => 'R$ ' + Number(v).toLocaleString('pt-BR'), font: { size: 11, family: 'DM Sans' }, color: '#6b7894', padding: 8 },
+          grid: { color: 'rgba(101,116,140,.18)', drawTicks: false }
+        },
+        x: {
+          border: { display: false },
+          grid: { display: false },
+          ticks: { font: { size: 11, family: 'DM Sans', weight: 600 }, color: '#6b7894', autoSkip: false, maxRotation: 0, padding: 8 }
+        }
+      }
+    }
+  });
+}
+
+// ── CATEGORIAS ────────────────────────────────────────────────────────────────
+function renderCats() {
+  const t = base();
+  const sai = t.filter(x => x.tipo === 'saida');
+  const tot = sai.reduce((a, x) => a + x.value, 0);
+  const bycat = {};
+  sai.forEach(x => { bycat[x.cat] = (bycat[x.cat] || 0) + x.value; });
+  const sorted = Object.entries(bycat).sort((a, b) => b[1] - a[1]);
+  document.getElementById('cat-grid').innerHTML = sorted.map(([cat, val]) => {
+    const pct = tot > 0 ? (val / tot * 100).toFixed(1) : 0;
+    const col = getCatColor(cat);
+    return `<div class="cat-card" onclick='openCategory(${JSON.stringify(cat)})' title="Ver lançamentos de ${cat}">
+      <div class="cat-name">${cat}</div>
+      <div class="cat-val" style="color:${col}">R$ ${fmtBRL(val)}</div>
+      <div class="cat-bar" style="background:${col};width:${pct}%;max-width:100%"></div>
+      <div class="cat-pct">${pct}% das saídas · clique para ver</div>
+    </div>`;
+  }).join('');
+  if (chartC) chartC.destroy();
+  chartC = new Chart(document.getElementById('chartCat'), {
+    type: 'doughnut',
+    data: { labels: sorted.map(([c]) => c), datasets: [{ data: sorted.map(([, v]) => v), backgroundColor: sorted.map(([c]) => getCatColor(c)), borderWidth: 0, hoverOffset: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'right', labels: { font: { size: 11 }, color: '#7c8299', boxWidth: 12, padding: 10 } } }
+    }
+  });
+}
+
+// ── TABELA TRANSAÇÕES ─────────────────────────────────────────────────────────
+function openCategory(cat) {
+  document.getElementById('f-tipo').value = 'saida';
+  document.getElementById('f-cat').value = cat;
+  document.getElementById('f-banco').value = '';
+  const tabBtn = [...document.querySelectorAll('.tab')].find(b => b.textContent.trim().startsWith('Transa'));
+  if (tabBtn) switchTab('transacoes', tabBtn);
+  renderTxns();
+}
+
+function descHTML(x) {
+  const full = x.descFull || x.desc || '—';
+  const safeFull = String(full).replace(/"/g, '&quot;');
+  if (x.nome) {
+    let h = `<div class="txn-desc" title="${safeFull}">${x.nome}</div>`;
+    const m = [];
+    if (x.cnpj) m.push('CNPJ ' + x.cnpj);
+    if (x.meio) m.push(x.meio);
+    if (m.length) h += `<div class="txn-meta" title="${safeFull}">${m.join(' · ')}</div>`;
+    return h;
+  }
+  return `<div class="txn-desc" title="${safeFull}">${full}</div>${x.meio ? `<div class="txn-meta">${x.meio}</div>` : ''}`;
+}
+
+function renderTxns() {
+  const t = filt();
+  document.getElementById('tbody-txns').innerHTML = t.slice(0, 500).map(x => {
+    const col = getCatColor(x.cat);
+    const tipoBadge = x.tipo === 'entrada'
+      ? `<span class="badge" style="background:${getCatColor('Recebimento de clientes')}22;color:${getCatColor('Recebimento de clientes')}">Entrada</span>`
+      : `<span class="badge" style="background:var(--red-dim);color:var(--red)">Saída</span>`;
+    return `<tr>
+      <td style="white-space:nowrap;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)">${x.date}</td>
+      <td style="min-width:360px;max-width:520px">${descHTML(x)}<span class="badge txn-cat" style="background:${col}22;color:${col};display:inline-block">${x.cat}</span></td>
+      <td style="font-size:11px;color:var(--text2);white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis">${x.bancoInfo || '—'}</td>
+      <td>${tipoBadge}</td>
+      <td style="text-align:right;font-weight:500;font-family:'DM Mono',monospace;white-space:nowrap;color:${x.tipo === 'entrada' ? 'var(--green)' : 'var(--red)'}">${x.tipo === 'entrada' ? '+' : '-'} R$ ${fmtBRL(x.value)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('txns-count').textContent = `Exibindo ${Math.min(t.length, 500).toLocaleString('pt-BR')} de ${t.length.toLocaleString('pt-BR')} transações`;
+}
+
+// ── TRANSFERÊNCIAS ────────────────────────────────────────────────────────────
+function renderTrf() {
+  const dir = document.getElementById('f-trf-dir').value;
+  const mk = document.getElementById('f-trf-mes').value;
+  let t = allTxns.filter(x => isTrf(x.cat));
+  if (mk) t = t.filter(x => x.monthKey === mk);
+  if (dir) t = t.filter(x => x.tipo === dir);
+  t = t.slice().sort((a, b) => b.dateSerial - a.dateSerial || b.value - a.value);
+  document.getElementById('tbody-trf').innerHTML = t.slice(0, 300).map(x => `<tr>
+    <td style="white-space:nowrap;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2)">${x.date}</td>
+    <td style="max-width:280px">
+      ${x.nome ? `<div style="font-size:12px;font-weight:500">${x.nome}</div><div style="font-size:10px;color:var(--text2);margin-top:1px">${x.cnpj ? 'CNPJ ' + x.cnpj + ' · ' : ''}${x.meio || ''}</div>` : ''}
+      <div style="font-size:11px;color:var(--text2);margin-top:2px;word-break:break-word">${x.descFull || x.desc || '—'}</div>
+    </td>
+    <td style="font-size:11px;color:var(--text2);white-space:nowrap">${x.bancoInfo || '—'}</td>
+    <td>${x.tipo === 'entrada' ? `<span class="badge" style="background:var(--green-dim);color:var(--green)">Recebida</span>` : `<span class="badge" style="background:var(--red-dim);color:var(--red)">Enviada</span>`}</td>
+    <td style="text-align:right;font-weight:500;font-family:'DM Mono',monospace;white-space:nowrap;color:${x.tipo === 'entrada' ? 'var(--green)' : 'var(--red)'}">${x.tipo === 'entrada' ? '+' : '-'} R$ ${fmtBRL(x.value)}</td>
+  </tr>`).join('');
+  document.getElementById('trf-count').textContent = `${t.length.toLocaleString('pt-BR')} transferência(s)`;
+}
+
+// ── MAIORES ───────────────────────────────────────────────────────────────────
+function renderMaiores() {
+  const t = base();
+  const sai = t.filter(x => x.tipo === 'saida').sort((a, b) => b.value - a.value).slice(0, 10);
+  const ent = t.filter(x => x.tipo === 'entrada').sort((a, b) => b.value - a.value).slice(0, 10);
+  const maxS = sai[0]?.value || 1, maxE = ent[0]?.value || 1;
+  const li = (x, maxV, barCol, valCol) => `<li class="top-item">
+    <div class="top-desc">
+      <div class="top-name">${(x.nome || x.desc || '').substring(0, 65)}</div>
+      <div class="top-bar" style="background:${barCol};width:${(x.value / maxV * 100).toFixed(0)}%"></div>
+      <div class="top-meta">${x.date} · ${x.cat}</div>
+    </div>
+    <div class="top-val" style="color:${valCol}">R$ ${fmtBRL(x.value)}</div>
+  </li>`;
+  document.getElementById('top-saidas').innerHTML = sai.map(x => li(x, maxS, '#f05c5c', 'var(--red)')).join('');
+  document.getElementById('top-entradas').innerHTML = ent.map(x => li(x, maxE, '#2dd4a0', 'var(--green)')).join('');
+}
+
+// ── EXPORTAR ──────────────────────────────────────────────────────────────────
+function renderExport() {
+  const sel = document.getElementById('export-bank');
+  const bancos = [...new Set(base().map(x => x.bancoInfo || x.banco).filter(Boolean))].sort();
+  const prev = sel?.value || '';
+  if (sel) {
+    sel.innerHTML = '<option value="">Todos os bancos</option>' + bancos.map(b => `<option value="${b}">${b}</option>`).join('');
+    sel.value = bancos.includes(prev) ? prev : '';
+  }
+  const t = exportBase();
+  document.getElementById('tbody-export').innerHTML = t.map((x, i) => `<tr>
+    <td style="white-space:nowrap;font-family:'DM Mono',monospace;font-size:11px">${x.date}</td>
+    <td style="font-size:11px;color:var(--text2);max-width:160px;word-break:break-word">${cleanDominioText(x.codDebito)}</td>
+    <td style="font-size:11px;color:var(--text2);max-width:160px;word-break:break-word">${cleanDominioText(x.codCredito)}</td>
+    <td style="text-align:right;font-weight:500;font-family:'DM Mono',monospace;font-size:11px;color:${x.tipo === 'entrada' ? 'var(--green)' : 'var(--red)'}">${fmtBRL(x.value)}</td>
+    <td style="font-size:11px;max-width:200px;word-break:break-word;color:var(--text2)">${dominioComplemento(x)}</td>
+    <td style="font-size:11px;color:var(--text2)">${i === 0 ? '1' : ''}</td>
+  </tr>`).join('');
+}
+
+function exportBase() {
+  const bank = document.getElementById('export-bank')?.value || '';
+  let t = base();
+  if (bank) t = t.filter(x => (x.bancoInfo || x.banco) === bank);
+  return t;
+}
+
+const DOMINIO_HEADERS = [
+  'Data',
+  'Cód. Conta Débito',
+  'Cód. Conta Crédito',
+  'Valor',
+  'Cód. Histórico',
+  'Complemento Histórico',
+  'Inicia Lote',
+  'Código Matriz/Filial',
+  'Centro de Custo Débito',
+  'Centro de Custo Crédito'
+];
+
+function cleanDominioText(s) {
+  return sanitizeHistoryText(s, 240);
+}
+
+function dominioComplemento(x) {
+  const raw = cleanDominioText(x.complemento || x.desc || x.descFull);
+  const onlyDoc = /^\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}$|^\d{3}\.?\d{3}\.?\d{3}-?\d{2}$/.test(raw.trim());
+  const tooShort = raw.trim().length < 8;
+  if (onlyDoc || tooShort) {
+    return cleanDominioText([x.cat, raw].filter(Boolean).join(' - '));
+  }
+  return raw;
+}
+
+function dominioRow(x, index = 0) {
+  return [
+    x.date,
+    cleanDominioText(x.codDebito),
+    cleanDominioText(x.codCredito),
+    Number((+x.value || 0).toFixed(2)),
+    '',
+    dominioComplemento(x),
+    index === 0 ? 1 : '',
+    '',
+    '',
+    ''
+  ];
+}
+
+function dominioTSV() {
+  const rows = [DOMINIO_HEADERS, ...exportBase().map((x, i) => dominioRow(x, i))];
+  return rows.map(row => row.map(v => {
+    const value = typeof v === 'number' ? v.toFixed(2).replace('.', ',') : String(v ?? '');
+    return value.replace(/[\t\r\n]/g, ' ');
+  }).join('\t')).join('\n');
+}
+
+async function copiarDominioExcel() {
+  const s = document.getElementById('export-status');
+  const text = dominioTSV();
+  try {
+    await navigator.clipboard.writeText(text);
+    s.style.color = 'var(--green)';
+    s.textContent = `Copiado para a área de transferência — cole na Plan1 do modelo Domínio.`;
+  } catch (e) {
+    s.style.color = 'var(--gold)';
+    s.innerHTML = '<div style="margin-bottom:8px">Não consegui copiar automaticamente. Selecione o quadro abaixo e copie com Ctrl+C.</div>' +
+      `<textarea style="width:100%;height:220px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:10px;font-family:'DM Mono',monospace;font-size:11px">${text.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</textarea>`;
+  }
+}
+
+async function saveFile(blob, filename, okMessage) {
+  const s = document.getElementById('export-status');
+  s.style.color = 'var(--green)';
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.textContent = `Clique aqui para baixar ${filename}`;
+  a.style.color = 'var(--green)';
+  a.style.fontWeight = '600';
+  a.style.textDecoration = 'underline';
+  a.onclick = () => setTimeout(() => URL.revokeObjectURL(url), 30000);
+  s.innerHTML = `Arquivo pronto (${(blob.size / 1024).toFixed(1)} KB). `;
+  s.appendChild(a);
+}
+
+async function downloadExcel() {
+  const t = exportBase();
+  if (typeof XLSX === 'undefined') {
+    document.getElementById('export-status').textContent = 'SheetJS não carregou. Use o CSV ou abra com internet e tente de novo.';
+    return;
+  }
+  const wsData = [DOMINIO_HEADERS, ...t.map((x, i) => dominioRow(x, i))];
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  for (let r = 1; r < wsData.length; r++) {
+    const c = ws[XLSX.utils.encode_cell({ r, c: 3 })];
+    if (c) {
+      c.t = 'n';
+      c.z = '#,##0.00';
+    }
+  }
+  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 55 }, { wch: 10 }, { wch: 18 }, { wch: 20 }, { wch: 20 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Plan1');
+  const mes = (currentMes || 'completo').replace('-', '_');
+  const bankSlug = (document.getElementById('export-bank')?.value || 'todos').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase();
+  const filename = `lancamentos_dominio_${mes}_${bankSlug}.xlsx`;
+  try {
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    await saveFile(blob, filename, `Excel salvo - ${filename} (${t.length.toLocaleString('pt-BR')} lançamentos).`);
+    return;
+    const url = URL.createObjectURL(new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    const s = document.getElementById('export-status');
+    s.style.color = 'var(--green)';
+    s.textContent = `Download iniciado — ${filename} (${t.length.toLocaleString('pt-BR')} lançamentos).`;
+  } catch (e) {
+    console.error(e);
+    document.getElementById('export-status').textContent = 'Erro ao gerar Excel. Tente o CSV.';
+  }
+}
+
+async function downloadCSV() {
+  const t = exportBase();
+  const lines = t.map((x, i) => {
+    const row = dominioRow(x, i);
+    row[3] = row[3].toFixed(2).replace('.', ',');
+    return row.map(v => cleanDominioText(v)).join(';');
+  });
+  const csv = '\uFEFF' + [DOMINIO_HEADERS.join(';'), ...lines].join('\r\n');
+  const bankSlug = (document.getElementById('export-bank')?.value || 'todos').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase();
+  const csvName = `lancamentos_dominio_${(currentMes || 'completo').replace('-', '_')}_${bankSlug}.csv`;
+  await saveFile(new Blob([csv], { type: 'text/csv;charset=utf-8' }), csvName, `CSV salvo - ${csvName} (${t.length.toLocaleString('pt-BR')} lançamentos).`);
+  return;
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lancamentos_dominio_${(currentMes || 'completo').replace('-', '_')}.csv`;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+  const s = document.getElementById('export-status');
+  s.style.color = 'var(--green)';
+  s.textContent = `✓ CSV gerado — ${t.length.toLocaleString('pt-BR')} lançamentos.`;
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function ofxDate(d) {
+  const [dd, mm, yyyy] = d.split('/');
+  return `${yyyy}${mm}${dd}120000[-3:BRT]`;
+}
+
+function escapeOFX(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').trim();
+}
+
+function ofxBankId(banco) {
+  const b = String(banco || '');
+  if (/brasil/i.test(b)) return '001';
+  if (/ita/i.test(b)) return '341';
+  if (/sicoob/i.test(b)) return '756';
+  if (/unicred/i.test(b)) return '136';
+  return '000';
+}
+
+function ofxAcctId(info) {
+  const s = String(info || '');
+  const m = s.match(/(?:Cc\.|Conta:?\s*)([\d.-]+)/i) || s.match(/(\d[\d.-]{3,})/);
+  return (m?.[1] || s || 'CONTA').replace(/[^\dA-Za-z.-]/g, '');
+}
+
+function ofxFitId(x, i) {
+  return `${x.source || 'APP'}-${x.date}-${i}-${Math.round(x.value * 100)}`
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .slice(0, 80);
+}
+
+async function downloadOFX() {
+  const t = exportBase().slice().sort((a, b) => a.dateSerial - b.dateSerial);
+  if (!t.length) return;
+  const contas = [...new Set(t.map(x => `${x.banco || ''}|${x.bancoInfo || ''}`))];
+  if (contas.length > 1) {
+    const s = document.getElementById('export-status');
+    s.style.color = 'var(--red)';
+    s.textContent = 'OFX deve ser gerado por uma conta/banco por vez. Filtre um banco ou importe apenas um extrato dessa conta.';
+    return;
+  }
+  const first = t[0], last = t[t.length - 1];
+  const bankName = cleanDominioText(first.banco || 'Banco');
+  const bankId = ofxBankId(first.banco);
+  const acctId = ofxAcctId(first.bancoInfo || first.banco || 'CONTA');
+  const val = currentValidationSummary();
+  const ledger = val?.saldoFinal != null
+    ? val.saldoFinal
+    : t.reduce((s, x) => s + (x.tipo === 'entrada' ? x.value : -x.value), 0);
+  const stmt = t.map((x, i) => {
+    const amt = (x.tipo === 'entrada' ? x.value : -x.value).toFixed(2);
+    const fitid = ofxFitId(x, i);
+    return `<STMTTRN>
+<TRNTYPE>${x.tipo === 'entrada' ? 'CREDIT' : 'DEBIT'}
+<DTPOSTED>${ofxDate(x.date)}
+<TRNAMT>${amt}
+<FITID>${escapeOFX(fitid)}
+<NAME>${escapeOFX(x.cat)}
+<MEMO>${escapeOFX(x.complemento || x.descFull || x.desc)}
+</STMTTRN>`;
+  }).join('\n');
+  const ofx = `OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+SECURITY:NONE
+ENCODING:UTF-8
+CHARSET:UTF-8
+COMPRESSION:NONE
+OLDFILEUID:NONE
+NEWFILEUID:NONE
+
+<OFX>
+<SIGNONMSGSRSV1><SONRS><STATUS><CODE>0<SEVERITY>INFO</STATUS><DTSERVER>${ofxDate(last.date)}<LANGUAGE>POR<FI><ORG>${escapeOFX(bankName)}<FID>${escapeOFX(bankId)}</FI></SONRS></SIGNONMSGSRSV1>
+<BANKMSGSRSV1><STMTTRNRS><TRNUID>1<STATUS><CODE>0<SEVERITY>INFO</STATUS><STMTRS>
+<CURDEF>BRL
+<BANKACCTFROM><BANKID>${escapeOFX(bankId)}<ACCTID>${escapeOFX(acctId)}<ACCTTYPE>CHECKING</BANKACCTFROM>
+<BANKTRANLIST><DTSTART>${ofxDate(first.date)}<DTEND>${ofxDate(last.date)}
+${stmt}
+</BANKTRANLIST>
+<LEDGERBAL><BALAMT>${ledger.toFixed(2)}<DTASOF>${ofxDate(last.date)}</LEDGERBAL>
+</STMTRS></STMTTRNRS></BANKMSGSRSV1>
+</OFX>`;
+  const name = `extrato_convertido_${(currentMes || 'completo').replace('-', '_')}.ofx`;
+  await saveFile(new Blob([ofx], { type: 'application/x-ofx;charset=utf-8' }), name, name);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function showScreen(s) {
+  ['upload', 'proc', 'results'].forEach(n => document.getElementById('screen-' + n).classList.remove('active'));
+  document.getElementById('screen-' + s).classList.add('active');
+}
+
+function resetApp() {
+  allTxns = []; currentMes = '';
+  sourceCompanies = {};
+  importValidations = {};
+  document.getElementById('btn-novo').style.display = 'none';
+  document.getElementById('hdr-info').textContent = '';
+  if (chartR) chartR.destroy(); chartR = null;
+  if (chartC) chartC.destroy(); chartC = null;
+  showScreen('upload');
+}
+</script>
+</body>
+</html>

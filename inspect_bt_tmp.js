@@ -1,0 +1,3 @@
+﻿const fs=require('fs'), zlib=require('zlib'); const buf=fs.readFileSync(process.argv[2]); const s=buf.toString('latin1');
+function streamObj(id){const re=new RegExp('\\n'+id+'\\s+0\\s+obj([\\s\\S]*?)endobj'); const m=s.match(re); if(!m)return ''; const obj=m[1]; const st=obj.indexOf('stream'); const en=obj.indexOf('endstream'); let start=st+6+(obj[st+6]=='\r'&&obj[st+7]=='\n'?2:obj[st+6]=='\n'?1:0); const full=Buffer.from(obj,'latin1'); const b=full.subarray(start,en-(full[en-1]===10||full[en-1]===13?1:0)); return zlib.inflateSync(b).toString('latin1');}
+const t=streamObj(47); let i=0; for (const m of t.matchAll(/BT[\s\S]{0,600}?ET/g)) { console.log('\n---BT---'); console.log(m[0].replace(/[^\x0a\x20-\x7e\u00a0-\u00ff]/g,'.')); if(++i>=20)break; }
