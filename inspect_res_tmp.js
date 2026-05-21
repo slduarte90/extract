@@ -1,1 +1,0 @@
-﻿const fs=require('fs'); const s=fs.readFileSync(process.argv[2],'latin1'); for(const id of [16,18,20,22]){const m=s.match(new RegExp('\\n'+id+'\\s+0\\s+obj([\\s\\S]*?)endobj')); console.log('OBJ',id); console.log(m&&m[1].slice(0,1200));}
